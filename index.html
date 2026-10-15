@@ -1,0 +1,1546 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Calculadora auditable de tokens y costos de modelos de IA, elaborada por Jorge Valencia.">
+  <title>Tokeniza-IA · Calculadora de costos</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --viz-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --viz-font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      --viz-bg: #f4f7fb;
+      --viz-surface: #ffffff;
+      --viz-surface-subtle: #edf2f7;
+      --viz-text: #14213d;
+      --viz-text-muted: #58657a;
+      --viz-border: #d7deea;
+      --viz-grid: #e7ebf1;
+      --viz-accent: #0f6680;
+      --viz-accent-soft: #d9eef4;
+      --viz-highlight: #e56b3f;
+      --viz-positive: #16745a;
+      --viz-warning: #9a6200;
+      --viz-negative: #b33a3a;
+      --viz-focus: #6b4eff;
+      --viz-cat-1: #0f6680;
+      --viz-cat-2: #e56b3f;
+      --viz-cat-3: #6957a5;
+      --viz-cat-4: #16745a;
+      --viz-cat-5: #956200;
+      --viz-cat-6: #49779e;
+      --viz-radius-sm: 8px;
+      --viz-radius-md: 14px;
+      --viz-radius-lg: 22px;
+      --viz-shadow: 0 14px 34px rgb(20 33 61 / 9%);
+      --viz-space-1: 4px;
+      --viz-space-2: 8px;
+      --viz-space-3: 12px;
+      --viz-space-4: 16px;
+      --viz-space-5: 24px;
+      --viz-space-6: 32px;
+      --viz-space-7: 48px;
+      --viz-space-8: 64px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--viz-bg);
+      color: var(--viz-text);
+      font-family: var(--viz-font-sans);
+      font-size: 16px;
+      line-height: 1.5;
+      text-rendering: optimizeLegibility;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    a { color: var(--viz-accent); }
+    :focus-visible { outline: 3px solid color-mix(in srgb, var(--viz-focus) 58%, transparent); outline-offset: 2px; }
+
+    .viz-shell { width: min(1480px, 100%); margin-inline: auto; padding: clamp(16px, 3vw, 42px); }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+      gap: var(--viz-space-6);
+      align-items: end;
+      margin-bottom: var(--viz-space-6);
+      padding: clamp(24px, 5vw, 56px);
+      border-radius: var(--viz-radius-lg);
+      background: #10223f;
+      color: #fff;
+      box-shadow: var(--viz-shadow);
+    }
+    .eyebrow { margin: 0 0 10px; color: #9ed5e2; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; font-size: .78rem; }
+    h1 { max-width: 18ch; margin: 0; font-size: clamp(2.2rem, 6vw, 5.4rem); line-height: .95; letter-spacing: -.055em; }
+    .hero p { max-width: 68ch; margin: 18px 0 0; color: #cfdae8; font-size: clamp(1rem, 2vw, 1.2rem); }
+    .hero-facts { display: grid; gap: 12px; }
+    .hero-fact { padding: 14px 16px; border-left: 3px solid #69bfd2; background: rgb(255 255 255 / 6%); border-radius: 0 10px 10px 0; }
+    .hero-fact strong { display: block; color: #fff; font-size: .95rem; }
+    .hero-fact span { color: #c7d4e4; font-size: .82rem; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: var(--viz-space-5); }
+    .btn {
+      min-height: 44px;
+      border: 1px solid var(--viz-border);
+      border-radius: var(--viz-radius-sm);
+      background: var(--viz-surface);
+      color: var(--viz-text);
+      padding: 10px 15px;
+      font-weight: 720;
+    }
+    .btn:hover { border-color: #9aabc1; }
+    .btn-primary { border-color: var(--viz-accent); background: var(--viz-accent); color: #fff; }
+    .btn-danger { color: var(--viz-negative); }
+    .automation-status { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 12px; color: var(--viz-text-muted); font-size: .78rem; }
+    .automation-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--viz-positive); }
+    .requirements-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 var(--viz-space-5); }
+    .requirement-item { min-width: 0; padding: 13px 15px; border: 1px solid var(--viz-border); border-radius: 11px; background: #f8fbfd; }
+    .requirement-item strong { display: block; color: var(--viz-text); font-size: .84rem; }
+    .requirement-item span { display: block; margin-top: 3px; color: var(--viz-text-muted); font-size: .74rem; line-height: 1.4; }
+    .drop-zone { display: grid; place-items: center; min-height: 150px; padding: 22px; border: 2px dashed #8bb8c5; border-radius: 14px; background: linear-gradient(145deg, #f5fbfd, #fff); text-align: center; transition: .18s ease; }
+    .drop-zone.dragover { border-color: var(--viz-accent); background: var(--viz-accent-soft); transform: translateY(-1px); }
+    .drop-zone strong { display: block; margin-bottom: 4px; font-size: 1rem; }
+    .drop-zone p { margin: 0; color: var(--viz-text-muted); font-size: .78rem; }
+    .drop-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+    .help-dialog { width: min(720px, calc(100% - 28px)); max-height: min(84vh, 760px); padding: 0; border: 0; border-radius: 16px; color: var(--viz-text); background: #fff; box-shadow: 0 24px 70px rgb(20 33 61 / 28%); }
+    .help-dialog::backdrop { background: rgb(10 24 44 / 58%); backdrop-filter: blur(3px); }
+    .help-dialog__header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; padding: 22px 24px 16px; border-bottom: 1px solid var(--viz-border); background: linear-gradient(135deg, #f4fafc, #fff); }
+    .help-dialog__header h2 { margin: 0; font-size: 1.25rem; }
+    .help-dialog__header p { margin: 5px 0 0; color: var(--viz-text-muted); font-size: .84rem; }
+    .help-dialog__close { flex: 0 0 auto; width: 40px; height: 40px; border: 1px solid var(--viz-border); border-radius: 9px; background: #fff; color: var(--viz-text); font-size: 1.2rem; cursor: pointer; }
+    .help-dialog__body { padding: 20px 24px 24px; overflow: auto; }
+    .upload-steps { margin: 0; padding-left: 24px; }
+    .upload-steps li { margin: 0 0 13px; padding-left: 5px; color: var(--viz-text-muted); line-height: 1.55; }
+    .upload-steps strong { color: var(--viz-text); }
+    .format-guide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 16px 0; }
+    .format-guide div { padding: 11px 12px; border: 1px solid var(--viz-border); border-radius: 9px; background: var(--viz-surface-subtle); font-size: .8rem; line-height: 1.45; }
+    .upload-example { margin: 14px 0 0; padding: 13px 14px; overflow: auto; border-radius: 9px; background: #10243a; color: #eef7fa; font: .78rem/1.55 Consolas, monospace; white-space: pre-wrap; }
+    .help-dialog__footer { display: flex; justify-content: flex-end; padding-top: 18px; }
+    .import-status { margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: var(--viz-surface-subtle); color: var(--viz-text-muted); font-size: .78rem; }
+    .import-status.success { background: #e5f4ef; color: var(--viz-positive); }
+    .import-status.warning { background: #fff2d6; color: var(--viz-warning); }
+    .import-status.error { background: #fff0f0; color: var(--viz-negative); }
+    .api-actions { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+    .api-status { flex: 1 1 190px; min-height: 44px; display: flex; align-items: center; padding: 9px 11px; border-radius: 9px; background: #eef7fa; color: var(--viz-text-muted); font-size: .74rem; line-height: 1.35; }
+    .api-status.loading { background: #fff7e3; color: var(--viz-warning); }
+    .api-status.success { background: #e5f4ef; color: var(--viz-positive); }
+    .api-status.error { background: #fff0f0; color: var(--viz-negative); }
+    .api-connected { margin: 0; padding: 11px 12px; border-left: 4px solid var(--viz-accent); border-radius: 0 9px 9px 0; background: #f2f8fb; color: var(--viz-text-muted); font-size: .75rem; line-height: 1.5; }
+    .api-connected strong { color: var(--viz-text); }
+    .api-connected span { display: block; margin-top: 2px; }
+    .automation-options { display: grid; gap: 8px; margin-top: 14px; }
+    .automation-option { display: flex; align-items: flex-start; gap: 9px; color: var(--viz-text-muted); font-size: .78rem; }
+    .automation-option input { width: 19px; height: 19px; margin-top: 1px; accent-color: var(--viz-accent); }
+
+    .layout { display: grid; grid-template-columns: minmax(310px, 440px) minmax(0, 1fr); gap: var(--viz-space-5); align-items: start; }
+    .panel-stack { display: grid; gap: var(--viz-space-4); position: sticky; top: 12px; }
+    .card { min-width: 0; border: 1px solid var(--viz-border); border-radius: var(--viz-radius-md); background: var(--viz-surface); padding: clamp(16px, 2vw, 24px); }
+    .card-raised { box-shadow: var(--viz-shadow); }
+    .card h2, .card h3 { margin: 0; line-height: 1.2; }
+    .card h2 { font-size: 1.35rem; }
+    .card h3 { font-size: 1rem; }
+    .section-heading { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .section-heading p { margin: 5px 0 0; color: var(--viz-text-muted); font-size: .86rem; }
+    .step { display: inline-grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: var(--viz-accent-soft); color: var(--viz-accent); font-weight: 800; }
+    .heading-copy { flex: 1; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    .field-full { grid-column: 1 / -1; }
+    label, legend { color: var(--viz-text); font-size: .82rem; font-weight: 740; }
+    .hint { color: var(--viz-text-muted); font-size: .73rem; font-weight: 500; }
+    .field-help { display: block; color: var(--viz-text-muted); font-size: .71rem; font-weight: 500; line-height: 1.35; }
+    .control {
+      width: 100%; min-height: 44px; border: 1px solid var(--viz-border); border-radius: var(--viz-radius-sm);
+      background: #fff; color: var(--viz-text); padding: 10px 11px;
+    }
+    textarea.control { min-height: 96px; resize: vertical; }
+    .control[aria-invalid="true"] { border-color: var(--viz-negative); box-shadow: 0 0 0 2px rgb(179 58 58 / 10%); }
+    .segmented { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 4px; border-radius: 10px; background: var(--viz-surface-subtle); }
+    .segmented.three { grid-template-columns: repeat(3, 1fr); }
+    .segmented input { position: absolute; opacity: 0; pointer-events: none; }
+    .segmented label { text-align: center; padding: 9px; border-radius: 7px; cursor: pointer; }
+    .segmented input:checked + label { background: #fff; box-shadow: 0 1px 5px rgb(20 33 61 / 12%); color: var(--viz-accent); }
+    .estimate-note { margin: 12px 0 0; padding: 11px 12px; border-radius: 9px; background: #fff5dc; color: #714800; font-size: .78rem; }
+    .hidden { display: none !important; }
+
+    .model-list, .scenario-list { display: grid; gap: 12px; }
+    .model-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+    .model-default-note { margin: 10px 0 0; padding: 11px 12px; border: 1px solid #cfe2e8; border-radius: 9px; background: #f4fafc; color: var(--viz-text-muted); font-size: .78rem; line-height: 1.55; }
+    .model-card { position: relative; border: 1px solid var(--viz-border); border-radius: 11px; padding: 14px; background: #fbfcfe; }
+    .model-card__title { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .model-number { color: var(--viz-text-muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .remove-model { min-width: 40px; min-height: 40px; border: 0; border-radius: 8px; background: #f8e9e9; color: var(--viz-negative); font-weight: 800; }
+    .switch-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+    .switch-row input { width: 20px; height: 20px; accent-color: var(--viz-accent); }
+    .executive-summary { border-left: 5px solid var(--viz-highlight); background: linear-gradient(135deg, #fffaf5, #fff); }
+    .executive-summary ul { margin: 12px 0 0; padding-left: 22px; }
+    .executive-summary li { margin: 7px 0; color: var(--viz-text-muted); }
+    .executive-conclusion { border-top: 5px solid var(--viz-accent); background: linear-gradient(145deg, #f5f9fc, #fff); }
+    .executive-conclusion__body { max-width: 92ch; }
+    .executive-conclusion__body p { margin: 11px 0 0; color: var(--viz-text-muted); font-size: .9rem; line-height: 1.68; }
+    .executive-conclusion__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--viz-border); color: var(--viz-text-muted); font-size: .74rem; font-weight: 700; }
+
+    .results { display: grid; gap: var(--viz-space-4); min-width: 0; }
+    .empty-state { display: grid; place-items: center; min-height: 380px; padding: 42px; text-align: center; }
+    .empty-icon { width: 72px; height: 72px; display: grid; place-items: center; margin-bottom: 18px; border-radius: 22px; background: var(--viz-accent-soft); color: var(--viz-accent); font-size: 2rem; font-weight: 900; }
+    .empty-state h2 { margin: 0; }
+    .empty-state p { max-width: 58ch; margin: 10px 0 0; color: var(--viz-text-muted); }
+    .error-box { border-color: #edb8b8; background: #fff8f8; }
+    .error-box h2 { color: var(--viz-negative); }
+    .error-list { margin: 12px 0 0; padding-left: 22px; }
+    .stale-notice { border-color: #e8c879; background: #fff9e9; color: #765000; }
+    .stale-notice strong { display: block; }
+
+    .result-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: end; }
+    .result-header h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.4rem); letter-spacing: -.035em; }
+    .meta { color: var(--viz-text-muted); font-size: .8rem; }
+    .status-badge { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; border-radius: 999px; padding: 5px 10px; background: #e5f4ef; color: var(--viz-positive); font-size: .76rem; font-weight: 800; }
+    .status-badge.estimated { background: #fff2d6; color: var(--viz-warning); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .kpi { display: grid; gap: 5px; min-height: 128px; align-content: space-between; font-variant-numeric: tabular-nums; }
+    .kpi-label { color: var(--viz-text-muted); font-size: .78rem; font-weight: 740; }
+    .kpi-value { font-size: clamp(1.45rem, 3vw, 2.35rem); font-weight: 810; line-height: 1; letter-spacing: -.04em; overflow-wrap: anywhere; }
+    .kpi-context { color: var(--viz-text-muted); font-size: .75rem; }
+
+    .chart-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .chart-controls .field { min-width: 190px; }
+    .bar-chart { display: grid; gap: 15px; margin-top: 20px; }
+    .bar-row { display: grid; grid-template-columns: minmax(110px, 190px) minmax(160px, 1fr) minmax(110px, auto); gap: 12px; align-items: center; }
+    .bar-label { font-size: .83rem; font-weight: 730; overflow-wrap: anywhere; }
+    .bar-track { height: 22px; border-radius: 4px; background: var(--viz-surface-subtle); overflow: hidden; }
+    .bar-fill { height: 100%; width: 0; min-width: 2px; border-radius: 4px; background: var(--viz-accent); transition: width .28s ease; }
+    .bar-row:first-child .bar-fill { background: var(--viz-positive); }
+    .bar-value { text-align: right; font-family: var(--viz-font-mono); font-size: .78rem; font-variant-numeric: tabular-nums; }
+
+    .table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--viz-border); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--viz-grid); text-align: right; white-space: nowrap; }
+    th { background: #f7f9fc; color: var(--viz-text-muted); font-size: .72rem; letter-spacing: .035em; text-transform: uppercase; }
+    td { font-size: .82rem; }
+    th:first-child, th:nth-child(2), td:first-child, td:nth-child(2) { text-align: left; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #f8fbfd; }
+
+    .insight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .insight { border-left: 4px solid var(--viz-accent); padding: 14px 16px; background: #f7fafc; border-radius: 0 10px 10px 0; }
+    .insight.warning { border-color: var(--viz-warning); background: #fffaf0; }
+    .insight h3 { margin: 0 0 5px; font-size: .93rem; }
+    .insight p { margin: 0; color: var(--viz-text-muted); font-size: .82rem; }
+    .formula-list { display: grid; gap: 8px; }
+    .formula { padding: 10px 12px; border-radius: 8px; background: #101b2e; color: #dae6f5; font-family: var(--viz-font-mono); font-size: .76rem; overflow-x: auto; white-space: nowrap; }
+    details { border-top: 1px solid var(--viz-border); padding-top: 14px; }
+    details:first-of-type { border-top: 0; padding-top: 0; }
+    summary { cursor: pointer; font-weight: 760; }
+    details p, details li { color: var(--viz-text-muted); font-size: .82rem; }
+    .source-default { margin: 12px 0 0; padding: 11px 12px; border-radius: 9px; background: #eef7fa; color: var(--viz-text-muted); font-size: .76rem; }
+    .glossary { display: grid; gap: 0; margin: 14px 0 0; }
+    .glossary-item { padding: 11px 0; border-bottom: 1px solid var(--viz-grid); }
+    .glossary-item:last-child { border-bottom: 0; }
+    .glossary dt { color: var(--viz-text); font-weight: 800; font-size: .82rem; }
+    .glossary dd { margin: 3px 0 0; color: var(--viz-text-muted); font-size: .77rem; }
+
+    footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: var(--viz-space-6); padding: 22px 4px; color: var(--viz-text-muted); font-size: .78rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .panel-stack { position: static; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 760px) {
+      .hero { grid-template-columns: 1fr; }
+      .form-grid, .insight-grid, .requirements-strip { grid-template-columns: 1fr; }
+      .field-full { grid-column: auto; }
+      .bar-row { grid-template-columns: 1fr; gap: 6px; }
+      .bar-value { text-align: left; }
+    }
+    @media (max-width: 500px) {
+      .viz-shell { padding: 12px; }
+      .hero { padding: 24px 18px; }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .model-actions { grid-template-columns: 1fr; }
+      .format-guide { grid-template-columns: 1fr; }
+      .help-dialog__header, .help-dialog__body { padding-left: 18px; padding-right: 18px; }
+      .toolbar .btn { flex: 1 1 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    @media print {
+      @page { size: A4 landscape; margin: 11mm; }
+      :root { --viz-bg: #fff; --viz-text: #000; --viz-text-muted: #333; --viz-border: #bbb; }
+      .viz-shell { width: 100%; padding: 0; }
+      .hero { color: #000; background: #fff; border: 2px solid #000; box-shadow: none; }
+      .hero p, .hero-fact span { color: #333; }
+      .hero-fact strong { color: #000; }
+      .toolbar, .panel-stack, .chart-controls, .no-print { display: none !important; }
+      .layout { display: block; }
+      .card { break-inside: avoid; box-shadow: none; }
+      .executive-conclusion { break-inside: avoid; }
+      .table-wrap { overflow: visible; }
+      table { font-size: 9pt; }
+      footer { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="viz-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Tokeniza-IA · herramienta local</p>
+        <h1>Calcula el costo antes de escalar.</h1>
+        <p>Compara modelos, longitudes, caché, cargos fijos y volúmenes con fórmulas auditables. Tus datos permanecen en este navegador.</p>
+      </div>
+      <div class="hero-facts" aria-label="Principios de la herramienta">
+        <div class="hero-fact"><strong>Sin tarifas inventadas</strong><span>La fuente, fecha y modalidad son obligatorias.</span></div>
+        <div class="hero-fact"><strong>Precisión antes del redondeo</strong><span>Los cálculos conservan el valor completo.</span></div>
+        <div class="hero-fact"><strong>Precio ≠ calidad</strong><span>El resultado identifica costo nominal, no el mejor modelo.</span></div>
+      </div>
+    </header>
+
+    <div class="toolbar" aria-label="Acciones">
+      <button class="btn" id="loadExample" type="button">Cargar ejemplo del chat</button>
+      <button class="btn" id="importButton" type="button">Importar archivo</button>
+      <button class="btn" id="exportConfig" type="button">Exportar configuración</button>
+      <button class="btn btn-danger" id="resetAll" type="button">Restablecer</button>
+      <span class="automation-status" id="saveStatus" role="status">Autoguardado activo</span>
+    </div>
+    <section class="requirements-strip" aria-label="Capacidades incluidas en la calculadora">
+      <article class="requirement-item"><strong>API de moneda</strong><span>Consulta automática de tipos de cambio con Frankfurter API v2 y captura manual de respaldo.</span></article>
+      <article class="requirement-item"><strong>4 formatos de archivo</strong><span>Importación local mediante arrastrar y soltar: JSON, CSV, TXT y Markdown.</span></article>
+      <article class="requirement-item"><strong>Comparativo de modelos</strong><span>Ejemplo precargado con OpenAI/ChatGPT, Anthropic/Claude y Google/Gemini.</span></article>
+    </section>
+    <input id="fileInput" class="sr-only" type="file" accept=".json,.csv,.txt,.md" multiple>
+    <dialog class="help-dialog" id="uploadHelpDialog" aria-labelledby="uploadHelpTitle">
+      <div class="help-dialog__header">
+        <div><h2 id="uploadHelpTitle">Cómo subir un archivo</h2><p>Guía rápida para importar datos sin capturarlos manualmente.</p></div>
+        <button class="help-dialog__close" id="closeUploadHelp" type="button" aria-label="Cerrar guía">×</button>
+      </div>
+      <div class="help-dialog__body">
+        <ol class="upload-steps">
+          <li><strong>Prepara el archivo.</strong> Puedes utilizar JSON, CSV, TXT o Markdown. El procesamiento ocurre localmente en este navegador.</li>
+          <li><strong>Identifica entrada y salida.</strong> En TXT o Markdown usa encabezados como “Pregunta:” y “Respuesta:”. También se reconocen “Entrada/Salida”, “Cliente/Agente” y sus equivalentes en inglés.</li>
+          <li><strong>Súbelo.</strong> Arrastra el archivo al recuadro de importación o presiona “Seleccionar archivos”. Puedes cargar juntos un archivo de entrada y otro de salida.</li>
+          <li><strong>Revisa el resultado.</strong> La calculadora completa los campos detectados, conserva los datos editables y muestra un aviso si falta información.</li>
+          <li><strong>Si todavía no existe una respuesta.</strong> Déjala pendiente o selecciona “Crear presupuesto automático por proporción”. Esta opción estima tokens de salida, pero no inventa el texto de una respuesta.</li>
+        </ol>
+        <div class="format-guide" aria-label="Formatos compatibles">
+          <div><strong>JSON</strong><br>Restaura una configuración completa exportada por la calculadora.</div>
+          <div><strong>CSV</strong><br>Carga escenarios, conteos, modelos y tarifas mediante la plantilla.</div>
+          <div><strong>TXT</strong><br>Importa preguntas y respuestas como texto sin formato.</div>
+          <div><strong>Markdown</strong><br>Reconoce encabezados y secciones estructuradas.</div>
+        </div>
+        <p class="hint"><strong>Ejemplo recomendado para TXT o Markdown:</strong></p>
+        <pre class="upload-example">Pregunta:
+¿Cuáles son los requisitos para rentar un automóvil?
+
+Respuesta:
+Se requiere identificación oficial, licencia vigente y tarjeta de crédito.</pre>
+        <div class="help-dialog__footer"><button class="btn btn-primary" id="understoodUploadHelp" type="button">Entendido</button></div>
+      </div>
+    </dialog>
+
+    <div class="layout">
+      <aside class="panel-stack" aria-label="Configuración del análisis">
+        <section class="card card-raised">
+          <div class="section-heading">
+            <span class="step">↥</span>
+            <div class="heading-copy"><h2>Importación inteligente</h2><p>Carga configuraciones, escenarios, tarifas o textos sin capturarlos uno por uno.</p></div>
+          </div>
+          <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Arrastra archivos JSON, CSV, TXT o Markdown, o presiona para seleccionarlos">
+            <div><strong>Arrastra aquí tus archivos</strong><p>JSON configura todo · CSV detecta escenarios y modelos · TXT/MD reconoce encabezados como “Pregunta:” y “Respuesta:”.</p><div class="drop-actions"><button class="btn" id="browseFiles" type="button">Seleccionar archivos</button><button class="btn" id="uploadHelp" type="button">¿Cómo subir un archivo?</button><button class="btn" id="downloadTemplate" type="button">Descargar plantilla CSV</button></div></div>
+          </div>
+          <div class="automation-options">
+            <label class="automation-option"><input id="autoCalculate" type="checkbox" checked><span>Calcular automáticamente cuando estén completas todas las entradas críticas.</span></label>
+            <label class="automation-option"><input id="autoRestore" type="checkbox" checked><span>Recuperar automáticamente la última sesión guardada en este navegador.</span></label>
+          </div>
+          <div class="form-grid" style="margin-top:12px">
+            <div class="field field-full"><label for="missingOutputMode">Si el archivo no contiene una salida</label><select class="control" id="missingOutputMode"><option value="pending" selected>Detectarla y dejarla pendiente</option><option value="ratio">Crear presupuesto automático por proporción</option></select></div>
+            <div class="field field-full hidden" id="missingOutputRatioField"><label for="missingOutputRatio">Salida estimada como porcentaje de la entrada</label><input class="control" id="missingOutputRatio" type="number" min="0.1" step="0.1" placeholder="Ej. 100"><span class="hint">Supuesto editable: 100% presupuestaría tantos tokens de salida como de entrada.</span></div>
+          </div>
+          <p class="import-status" id="importStatus" role="status">Listo para importar. Los archivos permanecen en este dispositivo.</p>
+        </section>
+        <section class="card card-raised">
+          <div class="section-heading">
+            <span class="step">1</span>
+            <div class="heading-copy"><h2>Alcance</h2><p>Define qué se calculará y cómo interpretar los tokens.</p></div>
+          </div>
+          <div class="form-grid">
+            <div class="field field-full"><label for="analysisName">Nombre del análisis</label><input class="control" id="analysisName" value="Análisis de costos de IA"></div>
+            <div class="field"><label for="currency">Moneda de las tarifas</label><select class="control" id="currency"><option value="USD" selected>USD · Dólar estadounidense</option><option value="MXN">MXN · Peso mexicano</option><option value="EUR">EUR · Euro</option><option value="GBP">GBP · Libra esterlina</option><option value="CAD">CAD · Dólar canadiense</option><option value="BRL">BRL · Real brasileño</option><option value="ARS">ARS · Peso argentino</option><option value="COP">COP · Peso colombiano</option><option value="CLP">CLP · Peso chileno</option><option value="PEN">PEN · Sol peruano</option><option value="JPY">JPY · Yen japonés</option><option value="CNY">CNY · Yuan chino</option></select></div>
+            <div class="field"><label for="pricingDate">Fecha de tarifas</label><input class="control" id="pricingDate" type="date"></div>
+            <div class="field field-full"><label for="tokenizer">Tokenizer / método</label><input class="control" id="tokenizer" placeholder="Ej. OpenAI o200k_base, versión 0.14.0"></div>
+            <div class="field field-full"><label for="scopeNote">Alcance del conteo</label><input class="control" id="scopeNote" placeholder="Ej. texto visible; excluye sistema, historial y herramientas"></div>
+            <div class="field field-full switch-row"><input id="useExchangeRate" type="checkbox"><label for="useExchangeRate">Convertir los resultados con un tipo de cambio</label></div>
+            <div id="exchangeRateFields" class="field-full form-grid hidden">
+              <div class="field"><label for="reportCurrency">Moneda del reporte</label><select class="control" id="reportCurrency"><option value="USD">USD · Dólar estadounidense</option><option value="MXN" selected>MXN · Peso mexicano</option><option value="EUR">EUR · Euro</option><option value="GBP">GBP · Libra esterlina</option><option value="CAD">CAD · Dólar canadiense</option><option value="BRL">BRL · Real brasileño</option><option value="ARS">ARS · Peso argentino</option><option value="COP">COP · Peso colombiano</option><option value="CLP">CLP · Peso chileno</option><option value="PEN">PEN · Sol peruano</option><option value="JPY">JPY · Yen japonés</option><option value="CNY">CNY · Yuan chino</option></select></div>
+              <div class="field"><label for="exchangeRate">Tipo de cambio</label><input class="control" id="exchangeRate" type="number" min="0" step="any" placeholder="Ej. 18.25"><span class="hint">1 unidad de tarifa = X unidades del reporte.</span></div>
+              <div class="field field-full">
+                <div class="api-actions">
+                  <button class="btn btn-primary" id="fetchExchangeRate" type="button">Obtener tipo de cambio por API</button>
+                  <span class="api-status" id="exchangeApiStatus" role="status" aria-live="polite">Frankfurter API v2 · sin clave · tasa de referencia, no intradía.</span>
+                </div>
+              </div>
+              <div class="field"><label for="exchangeRateDate">Fecha del tipo de cambio</label><input class="control" id="exchangeRateDate" type="date"></div>
+              <div class="field"><label for="exchangeRateSource">Fuente del tipo de cambio</label><input class="control" id="exchangeRateSource" placeholder="Ej. Banco de México"></div>
+              <div class="field field-full"><label for="exchangeRateUrl">URL de la fuente cambiaria</label><input class="control" id="exchangeRateUrl" type="url" placeholder="https://..."></div>
+              <p class="api-connected field-full"><strong>API conectada:</strong> <a href="https://frankfurter.dev/" target="_blank" rel="noopener noreferrer">Frankfurter API v2</a> · servicio público de tasas de referencia, sin clave.<span id="currencyCatalogStatus" role="status" aria-live="polite">Catálogo local disponible; comprobando monedas compatibles…</span></p>
+            </div>
+          </div>
+          <fieldset style="border:0;padding:0;margin:16px 0 0">
+            <legend>Tipo de análisis</legend>
+            <div class="segmented three">
+              <input id="modeSingle" name="scenarioMode" type="radio" value="single" checked><label for="modeSingle">Una llamada</label>
+              <input id="modeMatrix" name="scenarioMode" type="radio" value="matrix"><label for="modeMatrix">Matriz 4 escenarios</label>
+              <input id="modeCustom" name="scenarioMode" type="radio" value="custom"><label for="modeCustom">Escenarios propios</label>
+            </div>
+            <span class="field-help" style="margin-top:6px">Una llamada analiza un caso; la matriz combina entradas y salidas largas/cortas; escenarios propios permite comparar casos personalizados.</span>
+          </fieldset>
+          <fieldset style="border:0;padding:0;margin:14px 0 0">
+            <legend>Método de tokens</legend>
+            <div class="segmented">
+              <input id="methodExact" name="tokenMethod" type="radio" value="exact" checked><label for="methodExact">Conteos exactos</label>
+              <input id="methodEstimate" name="tokenMethod" type="radio" value="estimate"><label for="methodEstimate">Estimar por texto</label>
+            </div>
+            <span class="field-help" style="margin-top:6px">Prefiere conteos exactos. La estimación por caracteres sirve para presupuestar y se identifica como supuesto.</span>
+          </fieldset>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <span class="step">2</span>
+            <div class="heading-copy"><h2>Tokens</h2><p>Introduce conteos verificados o una estimación declarada.</p></div>
+          </div>
+          <div id="singleExact" class="form-grid token-section">
+            <div class="field"><label for="singleInput">Entrada</label><input class="control" id="singleInput" type="number" min="0" step="1"></div>
+            <div class="field"><label for="singleCached">Entrada en caché</label><input class="control" id="singleCached" type="number" min="0" step="1" value="0"></div>
+            <div class="field field-full"><label for="singleOutput">Salida</label><input class="control" id="singleOutput" type="number" min="0" step="1"></div>
+          </div>
+          <div id="matrixExact" class="form-grid token-section hidden">
+            <div class="field"><label for="inputLong">Entrada larga</label><input class="control" id="inputLong" type="number" min="0" step="1"></div>
+            <div class="field"><label for="inputShort">Entrada corta</label><input class="control" id="inputShort" type="number" min="0" step="1"></div>
+            <div class="field"><label for="outputLong">Salida larga</label><input class="control" id="outputLong" type="number" min="0" step="1"></div>
+            <div class="field"><label for="outputShort">Salida corta</label><input class="control" id="outputShort" type="number" min="0" step="1"></div>
+          </div>
+          <div id="singleEstimate" class="form-grid token-section hidden">
+            <div class="field field-full"><label for="singleInputText">Texto de entrada</label><textarea class="control" id="singleInputText"></textarea></div>
+            <div class="field field-full"><label for="singleOutputText">Texto de salida</label><textarea class="control" id="singleOutputText"></textarea></div>
+            <div class="field field-full"><label for="singleOutputBudget">Presupuesto de salida en tokens (opcional)</label><input class="control" id="singleOutputBudget" type="number" min="0" step="1" placeholder="Se usa solo si no hay texto de salida"><span class="hint">Es un supuesto de planeación, no texto generado ni conteo observado.</span></div>
+          </div>
+          <div id="matrixEstimate" class="form-grid token-section hidden">
+            <div class="field field-full"><label for="inputLongText">Entrada larga</label><textarea class="control" id="inputLongText"></textarea></div>
+            <div class="field field-full"><label for="inputShortText">Entrada corta</label><textarea class="control" id="inputShortText"></textarea></div>
+            <div class="field field-full"><label for="outputLongText">Salida larga</label><textarea class="control" id="outputLongText"></textarea></div>
+            <div class="field field-full"><label for="outputShortText">Salida corta</label><textarea class="control" id="outputShortText"></textarea></div>
+          </div>
+          <div id="customExact" class="token-section hidden">
+            <div id="customScenarioListExact" class="scenario-list"></div>
+            <button class="btn add-scenario" type="button" style="width:100%;margin-top:12px">+ Agregar escenario</button>
+          </div>
+          <div id="customEstimate" class="token-section hidden">
+            <div id="customScenarioListEstimate" class="scenario-list"></div>
+            <button class="btn add-scenario" type="button" style="width:100%;margin-top:12px">+ Agregar escenario</button>
+          </div>
+          <div id="estimateConfig" class="hidden">
+            <div class="field" style="margin-top:12px"><label for="charsPerToken">Supuesto: caracteres por token</label><input class="control" id="charsPerToken" type="number" min="0.1" step="0.1" value="4"></div>
+            <p class="estimate-note"><strong>Estimación, no dato:</strong> se usa techo(caracteres ÷ factor). Para presupuestos reales, reemplaza estos valores con el tokenizer o los metadatos del proveedor.</p>
+          </div>
+          <div class="field" style="margin-top:14px"><label for="volumes">Volúmenes de llamadas</label><input class="control" id="volumes" value="1, 1000, 10000, 1000000"><span class="hint">Enteros separados por comas.</span></div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading">
+            <span class="step">3</span>
+            <div class="heading-copy"><h2>Modelos y tarifas</h2><p>Compara los modelos base o agrega cualquier proveedor o modalidad.</p></div>
+          </div>
+          <div id="modelList" class="model-list"></div>
+          <div class="model-actions">
+            <button class="btn" id="addModel" type="button">+ Agregar modelo opcional</button>
+            <button class="btn" id="restoreDefaultModels" type="button">Restaurar modelos predeterminados</button>
+          </div>
+          <p class="model-default-note"><strong>Precargados y editables:</strong> OpenAI / GPT-5.6 Sol, Anthropic / Claude Opus 5 y Google / Gemini 2.5 Pro. Las tarifas provienen del ejercicio trabajado en este chat con fecha 9 de octubre de 2026; verifica su vigencia y modalidad antes de tomar una decisión.</p>
+          <p class="source-default"><strong>Fuente predeterminada editable:</strong> <a href="https://gptforwork.com/tools/openai-chatgpt-api-pricing-calculator" target="_blank" rel="noopener noreferrer">GPT for Work · API Pricing Calculator</a>. Verifica modelo, modalidad, moneda y fecha antes de usar la tarifa.</p>
+        </section>
+
+        <section class="card">
+          <details>
+            <summary>Glosario de campos y conceptos</summary>
+            <div class="field" style="margin-top:14px"><label for="glossarySearch">Buscar concepto</label><input class="control" id="glossarySearch" type="search" placeholder="Ej. caché, tokenizer o modalidad"></div>
+            <dl class="glossary" id="glossaryList">
+              <div class="glossary-item"><dt>Token</dt><dd>Unidad de texto procesada por el modelo. No equivale exactamente a una palabra.</dd></div>
+              <div class="glossary-item"><dt>Tokens de entrada</dt><dd>Tokens enviados al modelo: mensaje, instrucciones, historial y demás contexto incluido en el alcance.</dd></div>
+              <div class="glossary-item"><dt>Tokens de salida</dt><dd>Tokens generados por el modelo en su respuesta. Su tarifa suele ser distinta de la entrada.</dd></div>
+              <div class="glossary-item"><dt>Presupuesto de salida</dt><dd>Cantidad supuesta de tokens para modelar una respuesta que todavía no existe. No equivale a texto generado ni a consumo observado.</dd></div>
+              <div class="glossary-item"><dt>Entrada en caché</dt><dd>Parte reutilizada del contexto que el proveedor factura con una tarifa específica. Use cero si no aplica.</dd></div>
+              <div class="glossary-item"><dt>Precio por 1M</dt><dd>Tarifa API por un millón de tokens. Debe capturarse en la moneda indicada y según la modalidad correcta.</dd></div>
+              <div class="glossary-item"><dt>Cargo fijo por llamada</dt><dd>Costo adicional independiente de los tokens, por ejemplo una herramienta o servicio ejecutado en cada solicitud.</dd></div>
+              <div class="glossary-item"><dt>Multiplicador</dt><dd>Porcentaje aplicado al costo por tokens. 100% conserva la tarifa; 50% la reduce a la mitad; 200% la duplica.</dd></div>
+              <div class="glossary-item"><dt>Modalidad</dt><dd>Condición comercial de la tarifa: Standard, Batch, Flex, región, contexto largo u otra variante.</dd></div>
+              <div class="glossary-item"><dt>Tokenizer</dt><dd>Método y versión usados para convertir texto en tokens. Distintos proveedores pueden producir conteos diferentes.</dd></div>
+              <div class="glossary-item"><dt>Conteo exacto</dt><dd>Número obtenido con el tokenizer o los metadatos del proveedor, no mediante una aproximación por caracteres.</dd></div>
+              <div class="glossary-item"><dt>Estimación por texto</dt><dd>Aproximación: caracteres divididos entre el factor declarado. Sirve para presupuesto, no reemplaza la factura.</dd></div>
+              <div class="glossary-item"><dt>Escenario</dt><dd>Combinación de tokens de entrada, caché y salida que representa un tipo de interacción.</dd></div>
+              <div class="glossary-item"><dt>Volumen</dt><dd>Número de llamadas con el que se escala el costo unitario.</dd></div>
+              <div class="glossary-item"><dt>Fuente y vigencia</dt><dd>Página consultada y fecha en la que la tarifa o el tipo de cambio eran válidos.</dd></div>
+              <div class="glossary-item"><dt>Tipo de cambio</dt><dd>Cantidad de moneda del reporte equivalente a una unidad de la moneda original de las tarifas.</dd></div>
+              <div class="glossary-item"><dt>API de tipo de cambio</dt><dd>Servicio que consulta automáticamente una tasa documentada. Esta calculadora usa Frankfurter API v2, cuyas tasas son de referencia y no cotizaciones intradía para operar divisas.</dd></div>
+              <div class="glossary-item"><dt>Costo nominal</dt><dd>Costo calculado con los datos ingresados. No demuestra calidad, seguridad, latencia ni adecuación del modelo.</dd></div>
+            </dl>
+          </details>
+        </section>
+
+        <button class="btn btn-primary" id="calculate" type="button" style="width:100%;min-height:54px;font-size:1.03rem">Calcular y auditar</button>
+      </aside>
+
+      <section class="results" id="results" aria-live="polite" aria-busy="false">
+        <div class="card empty-state">
+          <div>
+            <div class="empty-icon" aria-hidden="true">∑</div>
+            <h2>Configura el análisis</h2>
+            <p>Completa tokens, fuentes y tarifas. La calculadora no producirá costos si falta una entrada crítica.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <span><strong>Tokeniza-IA</strong> · Elaborado por Jorge Valencia</span>
+      <span>Herramienta local · No transmite datos · El precio nominal no representa calidad</span>
+    </footer>
+  </main>
+
+  <template id="modelTemplate">
+    <article class="model-card">
+      <div class="model-card__title"><span class="model-number">Modelo 1</span><button type="button" class="remove-model" aria-label="Eliminar modelo">×</button></div>
+      <div class="form-grid">
+        <div class="field"><label>Proveedor<input class="control model-provider" placeholder="OpenAI"></label></div>
+        <div class="field"><label>Modelo<input class="control model-name" placeholder="Nombre exacto"></label></div>
+        <div class="field"><label>Entrada / 1M<input class="control model-input" type="number" min="0" step="any"></label></div>
+        <div class="field"><label>Salida / 1M<input class="control model-output" type="number" min="0" step="any"></label></div>
+        <div class="field"><label>Caché / 1M<input class="control model-cache" type="number" min="0" step="any" value="0"></label></div>
+        <div class="field"><label>Cargo fijo / llamada<input class="control model-fixed" type="number" min="0" step="any" value="0"></label></div>
+        <div class="field"><label>Multiplicador %<input class="control model-multiplier" type="number" min="0" step="any" value="100"></label><span class="hint">Aplica a costos por token.</span></div>
+        <div class="field"><label>Modalidad<input class="control model-mode" placeholder="Standard / Batch / región"></label></div>
+        <div class="field field-full"><label>Fuente<input class="control model-source" value="GPT for Work · API Pricing Calculator" placeholder="Proveedor o sitio consultado"></label></div>
+        <div class="field field-full"><label>URL de fuente<input class="control model-url" type="url" value="https://gptforwork.com/tools/openai-chatgpt-api-pricing-calculator" placeholder="https://..."></label></div>
+      </div>
+    </article>
+  </template>
+
+  <template id="scenarioTemplateExact">
+    <article class="model-card scenario-card">
+      <div class="model-card__title"><span class="scenario-number">Escenario 1</span><button type="button" class="remove-scenario" aria-label="Eliminar escenario">×</button></div>
+      <div class="form-grid">
+        <div class="field field-full"><label>Nombre<input class="control scenario-name" placeholder="Ej. Soporte breve"></label></div>
+        <div class="field"><label>Entrada<input class="control scenario-input" type="number" min="0" step="1"></label></div>
+        <div class="field"><label>Entrada en caché<input class="control scenario-cached" type="number" min="0" step="1" value="0"></label></div>
+        <div class="field field-full"><label>Salida<input class="control scenario-output" type="number" min="0" step="1"></label></div>
+      </div>
+    </article>
+  </template>
+
+  <template id="scenarioTemplateEstimate">
+    <article class="model-card scenario-card">
+      <div class="model-card__title"><span class="scenario-number">Escenario 1</span><button type="button" class="remove-scenario" aria-label="Eliminar escenario">×</button></div>
+      <div class="form-grid">
+        <div class="field field-full"><label>Nombre<input class="control scenario-name" placeholder="Ej. Soporte breve"></label></div>
+        <div class="field field-full"><label>Texto de entrada<textarea class="control scenario-input-text"></textarea></label></div>
+        <div class="field field-full"><label>Texto de salida<textarea class="control scenario-output-text"></textarea></label></div>
+        <div class="field field-full"><label>Presupuesto de salida en tokens (opcional)<input class="control scenario-output-budget" type="number" min="0" step="1" placeholder="Se usa solo si no hay texto de salida"></label><span class="hint">Supuesto editable para presupuestar una respuesta todavía no generada.</span></div>
+      </div>
+    </article>
+  </template>
+
+  <script>
+    (() => {
+      "use strict";
+      const $ = (selector, root = document) => root.querySelector(selector);
+      const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+      const results = $("#results");
+      const storageKey = "tokeniza-ia-calculator-v4";
+      const colors = ["#0f6680", "#e56b3f", "#6957a5", "#16745a", "#956200", "#49779e"];
+      const defaultPricingSource = "GPT for Work · API Pricing Calculator";
+      const defaultPricingUrl = "https://gptforwork.com/tools/openai-chatgpt-api-pricing-calculator";
+      const defaultPricingDate = "2026-10-09";
+      const defaultModels = () => [
+        {provider:"OpenAI",name:"GPT-5.6 Sol",input:5,output:30,cache:0,fixed:0,multiplier:100,mode:"Fuente secundaria; modalidad no especificada",source:defaultPricingSource,url:defaultPricingUrl},
+        {provider:"Anthropic",name:"Claude Opus 5",input:5,output:25,cache:0,fixed:0,multiplier:100,mode:"Fuente secundaria; modalidad no especificada",source:defaultPricingSource,url:defaultPricingUrl},
+        {provider:"Google",name:"Gemini 2.5 Pro",input:1.25,output:10,cache:0,fixed:0,multiplier:100,mode:"Fuente secundaria; modalidad no especificada",source:defaultPricingSource,url:defaultPricingUrl}
+      ];
+      const exchangeApiBase = "https://api.frankfurter.dev/v2/rate";
+      const exchangeCurrenciesUrl = "https://api.frankfurter.dev/v2/currencies";
+      const exchangeApiLabel = "Frankfurter API v2 · tasas de referencia";
+      const fieldHelp = {
+        "#analysisName":"Nombre que identificará el ejercicio en el reporte y los archivos exportados.",
+        "#currency":"Selecciona la moneda en la que están expresadas todas las tarifas.",
+        "#pricingDate":"Fecha en la que verificaste que los precios capturados estaban vigentes.",
+        "#tokenizer":"Tokenizer, codificación y versión usados; si es una aproximación, indícalo expresamente.",
+        "#scopeNote":"Define si el conteo incluye solo texto visible o también sistema, historial, herramientas y contenido recuperado.",
+        "#reportCurrency":"Selecciona la moneda final en la que deseas leer los resultados convertidos.",
+        "#exchangeRate":"Cuántas unidades de la moneda del reporte equivalen a una unidad de la moneda de las tarifas.",
+        "#exchangeRateDate":"Fecha de vigencia del tipo de cambio utilizado.",
+        "#exchangeRateSource":"Institución o servicio del que obtuviste el tipo de cambio.",
+        "#exchangeRateUrl":"Enlace exacto donde puede verificarse el tipo de cambio.",
+        "#singleInput, #inputLong, #inputShort":"Tokens no almacenados en caché enviados al modelo.",
+        "#singleCached":"Tokens de entrada facturados con la tarifa de caché; usa cero si no aplica.",
+        "#singleOutput, #outputLong, #outputShort":"Tokens generados por el modelo en la respuesta.",
+        "#singleInputText, #inputLongText, #inputShortText":"Texto que se estimará como entrada usando el factor declarado.",
+        "#singleOutputText, #outputLongText, #outputShortText":"Texto que se estimará como salida usando el factor declarado.",
+        "#singleOutputBudget, .scenario-output-budget":"Cantidad objetivo de tokens de salida cuando todavía no existe una respuesta. Es un supuesto editable, no un conteo observado.",
+        "#missingOutputMode":"Indica si una salida ausente debe quedar pendiente o presupuestarse automáticamente mediante una proporción declarada.",
+        "#missingOutputRatio":"Proporción usada para calcular el presupuesto de salida a partir de la estimación de tokens de entrada.",
+        "#charsPerToken":"Supuesto de caracteres por token. Es una aproximación y debe documentarse.",
+        "#volumes":"Cantidades de llamadas a presupuestar, separadas por comas.",
+        ".scenario-name":"Nombre operativo que permita reconocer este tipo de interacción.",
+        ".scenario-input":"Tokens de entrada no cacheados de este escenario.",
+        ".scenario-cached":"Tokens de entrada cobrados con tarifa de caché.",
+        ".scenario-output":"Tokens esperados o medidos de la respuesta.",
+        ".scenario-input-text":"Texto de entrada que se convertirá en una estimación de tokens.",
+        ".scenario-output-text":"Texto de salida que se convertirá en una estimación de tokens.",
+        ".model-provider":"Empresa que ofrece el modelo, por ejemplo OpenAI, Anthropic o Google.",
+        ".model-name":"Nombre exacto y versión del modelo cuya tarifa estás capturando.",
+        ".model-input":"Precio por un millón de tokens de entrada no cacheados.",
+        ".model-output":"Precio por un millón de tokens generados como salida.",
+        ".model-cache":"Precio por un millón de tokens de entrada en caché; usa cero si no aplica.",
+        ".model-fixed":"Costo adicional por cada llamada que no depende de los tokens.",
+        ".model-multiplier":"Ajuste porcentual sobre los costos por tokens. El valor normal sin ajuste es 100%.",
+        ".model-mode":"Modalidad exacta de la tarifa: Standard, Batch, Flex, región o contexto especial.",
+        ".model-source":"Nombre de la fuente consultada. GPT for Work aparece como predeterminada, pero puede cambiarse.",
+        ".model-url":"Enlace verificable de la fuente. Puede reemplazarse por la página oficial del proveedor."
+      };
+      let latestResult = null;
+      let saveTimer = null;
+      let calculateTimer = null;
+
+      function todayLocal() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      }
+      $("#pricingDate").value = defaultPricingDate;
+      $("#exchangeRateDate").value = todayLocal();
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+      }
+      function finiteNumber(value) {
+        if (value == null || String(value).trim() === "") return NaN;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : NaN;
+      }
+      function money(value, currency, digits = 8) {
+        if (!Number.isFinite(value)) return "N/D";
+        const abs = Math.abs(value);
+        const maximum = abs >= 100 ? 2 : abs >= 1 ? 4 : digits;
+        return `${currency} ${value.toLocaleString("es-MX", {maximumFractionDigits: maximum, minimumFractionDigits: 0})}`;
+      }
+      function pct(value) { return Number.isFinite(value) ? `${value.toLocaleString("es-MX", {maximumFractionDigits: 2})}%` : "N/D"; }
+      function compactInt(value) { return Number(value).toLocaleString("es-MX", {maximumFractionDigits: 0}); }
+
+      function setExchangeApiStatus(message, state = "") {
+        const status = $("#exchangeApiStatus");
+        status.textContent = message;
+        status.className = `api-status${state ? ` ${state}` : ""}`;
+      }
+
+      function ensureSelectValue(select, value) {
+        const normalized = String(value || "").trim().toUpperCase();
+        if (!normalized) return;
+        if (![...select.options].some(option => option.value === normalized)) select.add(new Option(normalized, normalized));
+        select.value = normalized;
+      }
+
+      function currencyName(code, fallback = "") {
+        try {
+          if (typeof Intl.DisplayNames === "function") return new Intl.DisplayNames(["es-MX"], {type:"currency"}).of(code) || fallback || code;
+        } catch (error) { /* Conserva el nombre proporcionado por la API. */ }
+        return fallback || code;
+      }
+
+      function populateCurrencyMenus(currencies) {
+        const selections = {currency:$("#currency").value || "USD", reportCurrency:$("#reportCurrency").value || "MXN"};
+        [$("#currency"), $("#reportCurrency")].forEach(select => {
+          const selected = selections[select.id];
+          const options = currencies.map(item => new Option(`${item.code} · ${currencyName(item.code, item.name)}`, item.code));
+          select.replaceChildren(...options);
+          ensureSelectValue(select, selected);
+        });
+      }
+
+      async function loadCurrencyMenus() {
+        const catalogStatus = $("#currencyCatalogStatus");
+        try {
+          const response = await fetch(exchangeCurrenciesUrl, {headers:{Accept:"application/json"}});
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (!Array.isArray(data)) throw new Error("formato inesperado");
+          const currencies = data
+            .map(item => ({code:String(item.iso_code || "").toUpperCase(), name:String(item.name || "")}))
+            .filter(item => /^[A-Z]{3}$/.test(item.code))
+            .sort((a, b) => a.code.localeCompare(b.code));
+          if (currencies.length < 2) throw new Error("catálogo vacío");
+          populateCurrencyMenus(currencies);
+          catalogStatus.textContent = `Catálogo conectado: ${currencies.length} monedas disponibles en los menús.`;
+        } catch (error) {
+          catalogStatus.textContent = "Catálogo local activo. La lista completa se actualizará automáticamente cuando haya conexión.";
+        }
+      }
+
+      async function fetchExchangeRate() {
+        const base = $("#currency").value.trim().toUpperCase();
+        const quote = $("#reportCurrency").value.trim().toUpperCase();
+        const button = $("#fetchExchangeRate");
+        if (!/^[A-Z]{3}$/.test(base) || !/^[A-Z]{3}$/.test(quote)) {
+          setExchangeApiStatus("Usa códigos ISO de tres letras, por ejemplo USD y MXN.", "error");
+          return;
+        }
+        if (base === quote) {
+          setExchangeApiStatus("Selecciona dos monedas distintas para consultar la conversión.", "error");
+          return;
+        }
+        const endpoint = `${exchangeApiBase}/${encodeURIComponent(base.toLowerCase())}/${encodeURIComponent(quote.toLowerCase())}`;
+        button.disabled = true;
+        button.textContent = "Consultando…";
+        setExchangeApiStatus(`Consultando ${base} → ${quote}…`, "loading");
+        try {
+          const response = await fetch(endpoint, {headers:{Accept:"application/json"}});
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.message || `respuesta HTTP ${response.status}`);
+          const rate = finiteNumber(data.rate);
+          if (!(rate > 0)) throw new Error("la respuesta no contiene una tasa válida");
+          $("#exchangeRate").value = String(rate);
+          $("#exchangeRateDate").value = /^\d{4}-\d{2}-\d{2}$/.test(data.date || "") ? data.date : todayLocal();
+          $("#exchangeRateSource").value = exchangeApiLabel;
+          $("#exchangeRateUrl").value = endpoint;
+          setExchangeApiStatus(`Tasa obtenida: 1 ${base} = ${rate.toLocaleString("es-MX", {maximumFractionDigits:8})} ${quote}. Fecha reportada: ${$("#exchangeRateDate").value}.`, "success");
+          scheduleAutomation();
+        } catch (error) {
+          setExchangeApiStatus(`No se pudo consultar la API (${error.message}). Puedes capturar y documentar la tasa manualmente.`, "error");
+        } finally {
+          button.disabled = false;
+          button.textContent = "Obtener tipo de cambio por API";
+        }
+      }
+
+      function applyFieldHelp(root = document) {
+        Object.entries(fieldHelp).forEach(([selector, help], groupIndex) => {
+          $$(selector, root).forEach((control, itemIndex) => {
+            const field = control.closest(".field");
+            if (!field || field.querySelector(`[data-help-key="${groupIndex}-${itemIndex}"]`)) return;
+            const hint = document.createElement("span");
+            hint.className = "field-help";
+            hint.dataset.helpKey = `${groupIndex}-${itemIndex}`;
+            hint.textContent = help;
+            field.appendChild(hint);
+            control.title = help;
+          });
+        });
+      }
+
+      function addModel(data = {}) {
+        const fragment = $("#modelTemplate").content.cloneNode(true);
+        const card = $(".model-card", fragment);
+        const fields = {
+          ".model-provider": data.provider ?? "",
+          ".model-name": data.name ?? "",
+          ".model-input": data.input ?? "",
+          ".model-output": data.output ?? "",
+          ".model-cache": data.cache ?? 0,
+          ".model-fixed": data.fixed ?? 0,
+          ".model-multiplier": data.multiplier ?? 100,
+          ".model-mode": data.mode ?? "",
+          ".model-source": String(data.source ?? "").trim() || defaultPricingSource,
+          ".model-url": String(data.url ?? "").trim() || defaultPricingUrl
+        };
+        Object.entries(fields).forEach(([selector, value]) => $(selector, card).value = value);
+        $(".remove-model", card).addEventListener("click", () => { card.remove(); renumberModels(); scheduleAutomation(); });
+        $("#modelList").appendChild(fragment);
+        applyFieldHelp(card);
+        renumberModels();
+      }
+      function renumberModels() {
+        const cards = $$(".model-card", $("#modelList"));
+        cards.forEach((card, index) => {
+          $(".model-number", card).textContent = `Modelo ${index + 1}`;
+          $(".remove-model", card).disabled = cards.length === 1;
+        });
+      }
+      defaultModels().forEach(addModel);
+
+      function addScenario(method = currentMethod(), data = {}) {
+        const list = method === "exact" ? $("#customScenarioListExact") : $("#customScenarioListEstimate");
+        const template = method === "exact" ? $("#scenarioTemplateExact") : $("#scenarioTemplateEstimate");
+        const fragment = template.content.cloneNode(true);
+        const card = $(".scenario-card", fragment);
+        $(".scenario-name", card).value = data.name ?? "";
+        if (method === "exact") {
+          $(".scenario-input", card).value = data.input ?? "";
+          $(".scenario-cached", card).value = data.cached ?? 0;
+          $(".scenario-output", card).value = data.output ?? "";
+        } else {
+          $(".scenario-input-text", card).value = data.inputText ?? "";
+          $(".scenario-output-text", card).value = data.outputText ?? "";
+          $(".scenario-output-budget", card).value = data.outputBudget ?? "";
+        }
+        $(".remove-scenario", card).addEventListener("click", () => { card.remove(); renumberScenarios(method); scheduleAutomation(); });
+        list.appendChild(fragment);
+        applyFieldHelp(card);
+        renumberScenarios(method);
+      }
+      function renumberScenarios(method) {
+        const list = method === "exact" ? $("#customScenarioListExact") : $("#customScenarioListEstimate");
+        const cards = $$(".scenario-card", list);
+        cards.forEach((card, index) => {
+          $(".scenario-number", card).textContent = `Escenario ${index + 1}`;
+          $(".remove-scenario", card).disabled = cards.length <= 2;
+        });
+      }
+      addScenario("exact", {name:"Escenario 1"});
+      addScenario("exact", {name:"Escenario 2"});
+      addScenario("estimate", {name:"Escenario 1"});
+      addScenario("estimate", {name:"Escenario 2"});
+
+      function currentMode() { return $("input[name='scenarioMode']:checked").value; }
+      function currentMethod() { return $("input[name='tokenMethod']:checked").value; }
+      function syncTokenPanels() {
+        const mode = currentMode();
+        const method = currentMethod();
+        $$(".token-section").forEach(section => section.classList.add("hidden"));
+        $(`#${mode}${method === "exact" ? "Exact" : "Estimate"}`).classList.remove("hidden");
+        $("#estimateConfig").classList.toggle("hidden", method !== "estimate");
+      }
+      $$('input[name="scenarioMode"], input[name="tokenMethod"]').forEach(input => input.addEventListener("change", syncTokenPanels));
+      $$(".add-scenario").forEach(button => button.addEventListener("click", () => addScenario(currentMethod())));
+      $("#useExchangeRate").addEventListener("change", () => {
+        $("#exchangeRateFields").classList.toggle("hidden", !$("#useExchangeRate").checked);
+        if ($("#useExchangeRate").checked) setExchangeApiStatus("Frankfurter API v2 · sin clave · tasa de referencia, no intradía.");
+      });
+      function syncMissingOutputOptions() {
+        const useRatio = $("#missingOutputMode").value === "ratio";
+        $("#missingOutputRatioField").classList.toggle("hidden", !useRatio);
+        $("#missingOutputRatio").disabled = !useRatio;
+      }
+      $("#missingOutputMode").addEventListener("change", syncMissingOutputOptions);
+
+      function estimateTokens(text, factor) { return Math.ceil([...text].length / factor); }
+      function getTokens(errors) {
+        const mode = currentMode();
+        const method = currentMethod();
+        const counts = {};
+        if (mode === "custom") {
+          const factor = finiteNumber($("#charsPerToken").value);
+          let outputBudgetUsed = false;
+          if (method === "estimate" && !(factor > 0)) errors.push("El supuesto de caracteres por token debe ser mayor que cero.");
+          const list = method === "exact" ? $("#customScenarioListExact") : $("#customScenarioListEstimate");
+          const cards = $$(".scenario-card", list);
+          if (cards.length < 2) errors.push("Agrega al menos dos escenarios personalizados para comparar.");
+          counts.custom = cards.map((card, index) => {
+            const name = $(".scenario-name", card).value.trim();
+            const label = `Escenario ${index + 1}`;
+            if (!name) errors.push(`${label}: falta el nombre.`);
+            if (method === "exact") {
+              const input = finiteNumber($(".scenario-input", card).value);
+              const cached = finiteNumber($(".scenario-cached", card).value);
+              const output = finiteNumber($(".scenario-output", card).value);
+              [["entrada", input], ["entrada en caché", cached], ["salida", output]].forEach(([field, value]) => {
+                if (!Number.isInteger(value) || value < 0) errors.push(`${label}: ${field} debe ser un entero mayor o igual a cero.`);
+              });
+              return {name, input, cached, output};
+            }
+            const inputText = $(".scenario-input-text", card).value;
+            const outputText = $(".scenario-output-text", card).value;
+            const outputBudget = finiteNumber($(".scenario-output-budget", card).value);
+            if (!inputText.trim()) errors.push(`${label}: falta el texto de entrada.`);
+            if (!outputText.trim() && (!Number.isInteger(outputBudget) || outputBudget < 0)) errors.push(`${label}: falta el texto de salida o un presupuesto de salida en tokens.`);
+            if (!outputText.trim() && Number.isInteger(outputBudget) && outputBudget >= 0) outputBudgetUsed = true;
+            return {name, input: factor > 0 ? estimateTokens(inputText, factor) : NaN, cached: 0, output: outputText.trim() && factor > 0 ? estimateTokens(outputText, factor) : outputBudget};
+          });
+          const names = counts.custom.map(s => s.name).filter(Boolean);
+          if (new Set(names).size !== names.length) errors.push("Los nombres de los escenarios deben ser únicos.");
+          counts.factor = factor;
+          counts.outputBudgetUsed = outputBudgetUsed;
+          return counts;
+        }
+        if (method === "estimate") {
+          const factor = finiteNumber($("#charsPerToken").value);
+          if (!(factor > 0)) errors.push("El supuesto de caracteres por token debe ser mayor que cero.");
+          if (mode === "single") {
+            const inputText = $("#singleInputText").value;
+            const outputText = $("#singleOutputText").value;
+            const outputBudget = finiteNumber($("#singleOutputBudget").value);
+            if (!inputText.trim()) errors.push("Falta el texto de entrada.");
+            if (!outputText.trim() && (!Number.isInteger(outputBudget) || outputBudget < 0)) errors.push("Falta el texto de salida o un presupuesto de salida en tokens.");
+            counts.input = factor > 0 ? estimateTokens(inputText, factor) : NaN;
+            counts.output = outputText.trim() && factor > 0 ? estimateTokens(outputText, factor) : outputBudget;
+            counts.outputBudgetUsed = !outputText.trim() && Number.isInteger(outputBudget) && outputBudget >= 0;
+          } else {
+            const map = {inputLong: "#inputLongText", inputShort: "#inputShortText", outputLong: "#outputLongText", outputShort: "#outputShortText"};
+            Object.entries(map).forEach(([key, selector]) => {
+              const text = $(selector).value;
+              if (!text.trim()) errors.push(`Falta el texto para ${key}.`);
+              counts[key] = factor > 0 ? estimateTokens(text, factor) : NaN;
+            });
+          }
+          counts.cached = 0;
+          counts.factor = factor;
+        } else if (mode === "single") {
+          [["input", "#singleInput"], ["cached", "#singleCached"], ["output", "#singleOutput"]].forEach(([key, selector]) => {
+            const value = finiteNumber($(selector).value);
+            if (!Number.isInteger(value) || value < 0) errors.push(`${key} debe ser un entero mayor o igual a cero.`);
+            counts[key] = value;
+          });
+        } else {
+          [["inputLong", "#inputLong"], ["inputShort", "#inputShort"], ["outputLong", "#outputLong"], ["outputShort", "#outputShort"]].forEach(([key, selector]) => {
+            const value = finiteNumber($(selector).value);
+            if (!Number.isInteger(value) || value < 0) errors.push(`${key} debe ser un entero mayor o igual a cero.`);
+            counts[key] = value;
+          });
+          counts.cached = 0;
+        }
+        return counts;
+      }
+
+      function getModels(errors) {
+        const models = $$(".model-card", $("#modelList")).map((card, index) => {
+          const model = {
+            provider: $(".model-provider", card).value.trim(),
+            name: $(".model-name", card).value.trim(),
+            input: finiteNumber($(".model-input", card).value),
+            output: finiteNumber($(".model-output", card).value),
+            cache: finiteNumber($(".model-cache", card).value),
+            fixed: finiteNumber($(".model-fixed", card).value),
+            multiplier: finiteNumber($(".model-multiplier", card).value),
+            mode: $(".model-mode", card).value.trim(),
+            source: $(".model-source", card).value.trim(),
+            url: $(".model-url", card).value.trim()
+          };
+          const label = `Modelo ${index + 1}`;
+          if (!model.provider) errors.push(`${label}: falta el proveedor.`);
+          if (!model.name) errors.push(`${label}: falta el nombre exacto.`);
+          [["entrada", model.input], ["salida", model.output], ["caché", model.cache], ["cargo fijo", model.fixed]].forEach(([field, value]) => {
+            if (!Number.isFinite(value) || value < 0) errors.push(`${label}: el precio de ${field} debe ser cero o positivo.`);
+          });
+          if (!Number.isFinite(model.multiplier) || model.multiplier < 0) errors.push(`${label}: el multiplicador debe ser cero o positivo.`);
+          if (!model.mode) errors.push(`${label}: falta la modalidad de precio.`);
+          if (!model.source) errors.push(`${label}: falta la fuente.`);
+          if (!/^https?:\/\//i.test(model.url)) errors.push(`${label}: la URL de fuente debe comenzar con http:// o https://.`);
+          return model;
+        });
+        const names = models.map(model => model.name).filter(Boolean);
+        if (new Set(names).size !== names.length) errors.push("Los nombres de los modelos deben ser únicos.");
+        return models;
+      }
+
+      function parseVolumes(errors) {
+        const raw = $("#volumes").value.split(",").map(value => value.trim()).filter(Boolean);
+        const volumes = raw.map(Number);
+        if (!volumes.length) errors.push("Agrega al menos un volumen.");
+        if (volumes.some(value => !Number.isInteger(value) || value <= 0)) errors.push("Todos los volúmenes deben ser enteros positivos.");
+        if (new Set(volumes).size !== volumes.length) errors.push("Los volúmenes no deben repetirse.");
+        return [...new Set(volumes)].sort((a, b) => a - b);
+      }
+
+      function buildScenarios(tokens) {
+        if (currentMode() === "single") return [{code: "Único", label: "Llamada configurada", input: tokens.input, cached: tokens.cached || 0, output: tokens.output}];
+        if (currentMode() === "custom") return tokens.custom.map((scenario, index) => ({code: `E${index + 1}`, label: scenario.name, input: scenario.input, cached: scenario.cached || 0, output: scenario.output}));
+        return [
+          {code: "A", label: "Entrada larga + salida larga", input: tokens.inputLong, cached: 0, output: tokens.outputLong},
+          {code: "B", label: "Entrada larga + salida corta", input: tokens.inputLong, cached: 0, output: tokens.outputShort},
+          {code: "C", label: "Entrada corta + salida larga", input: tokens.inputShort, cached: 0, output: tokens.outputLong},
+          {code: "D", label: "Entrada corta + salida corta", input: tokens.inputShort, cached: 0, output: tokens.outputShort}
+        ];
+      }
+
+      function calculate(silent = false) {
+        const errors = [];
+        const useExchangeRate = $("#useExchangeRate").checked;
+        const exchangeRate = useExchangeRate ? finiteNumber($("#exchangeRate").value) : 1;
+        const metadata = {
+          name: $("#analysisName").value.trim(), baseCurrency: $("#currency").value.trim().toUpperCase(),
+          currency: useExchangeRate ? $("#reportCurrency").value.trim().toUpperCase() : $("#currency").value.trim().toUpperCase(),
+          date: $("#pricingDate").value, tokenizer: $("#tokenizer").value.trim(), scope: $("#scopeNote").value.trim(),
+          estimated: currentMethod() === "estimate", useExchangeRate, exchangeRate,
+          exchangeRateDate: $("#exchangeRateDate").value, exchangeRateSource: $("#exchangeRateSource").value.trim(), exchangeRateUrl: $("#exchangeRateUrl").value.trim()
+        };
+        if (!metadata.name) errors.push("Falta el nombre del análisis.");
+        if (!metadata.baseCurrency) errors.push("Falta la moneda de las tarifas.");
+        if (!metadata.date) errors.push("Falta la fecha de tarifas.");
+        if (!metadata.tokenizer) errors.push("Falta el tokenizer o método de conteo.");
+        if (!metadata.scope) errors.push("Falta definir el alcance del conteo.");
+        if (useExchangeRate) {
+          if (!metadata.currency) errors.push("Falta la moneda del reporte.");
+          if (!(exchangeRate > 0)) errors.push("El tipo de cambio debe ser mayor que cero.");
+          if (!metadata.exchangeRateDate) errors.push("Falta la fecha del tipo de cambio.");
+          if (!metadata.exchangeRateSource) errors.push("Falta la fuente del tipo de cambio.");
+          if (!/^https?:\/\//i.test(metadata.exchangeRateUrl)) errors.push("La URL de la fuente cambiaria debe comenzar con http:// o https://.");
+          if (metadata.baseCurrency === metadata.currency) errors.push("La moneda del reporte debe ser distinta de la moneda de las tarifas al activar la conversión.");
+        }
+        const tokens = getTokens(errors);
+        metadata.outputBudgetUsed = Boolean(tokens.outputBudgetUsed);
+        const models = getModels(errors);
+        const volumes = parseVolumes(errors);
+        if (errors.length) {
+          if (!silent) renderErrors(errors);
+          else if (latestResult) {
+            const prior = $("#staleNotice"); if (prior) prior.remove();
+            results.insertAdjacentHTML("afterbegin", `<section class="card stale-notice" id="staleNotice" role="status"><strong>Resultado en pausa</strong>La configuración cambió y tiene ${errors.length} dato${errors.length === 1 ? "" : "s"} pendiente${errors.length === 1 ? "" : "s"}. El resultado visible corresponde al último cálculo completo.</section>`);
+          }
+          $("#saveStatus").textContent = `${errors.length} dato${errors.length === 1 ? "" : "s"} pendiente${errors.length === 1 ? "" : "s"}`;
+          return false;
+        }
+
+        const scenarios = buildScenarios(tokens).map(scenario => {
+          const rows = models.map((model, index) => {
+            const multiplier = model.multiplier / 100;
+            const baseInputCost = scenario.input * model.input / 1_000_000 * multiplier;
+            const baseCacheCost = scenario.cached * model.cache / 1_000_000 * multiplier;
+            const baseOutputCost = scenario.output * model.output / 1_000_000 * multiplier;
+            const baseTotal = baseInputCost + baseCacheCost + baseOutputCost + model.fixed;
+            const inputCost = baseInputCost * exchangeRate;
+            const cacheCost = baseCacheCost * exchangeRate;
+            const outputCost = baseOutputCost * exchangeRate;
+            const fixed = model.fixed * exchangeRate;
+            const total = baseTotal * exchangeRate;
+            const variableTotal = inputCost + cacheCost + outputCost;
+            return {
+              ...model, color: colors[index % colors.length], inputCost, cacheCost, outputCost, fixed, variableTotal, total, baseTotal,
+              outputShare: total ? outputCost / total * 100 : 0,
+              inputShare: total ? (inputCost + cacheCost) / total * 100 : 0,
+              fixedShare: total ? fixed / total * 100 : 0,
+              scaled: Object.fromEntries(volumes.map(volume => [volume, total * volume])),
+              formula: `((${scenario.input}×${model.input} + ${scenario.cached}×${model.cache} + ${scenario.output}×${model.output}) ÷ 1,000,000 × ${model.multiplier}%) + ${model.fixed}${useExchangeRate ? `; luego × ${exchangeRate}` : ""}`
+            };
+          });
+          const comparisons = [];
+          for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+            const higher = rows[i].total >= rows[j].total ? rows[i] : rows[j];
+            const lower = higher === rows[i] ? rows[j] : rows[i];
+            const difference = higher.total - lower.total;
+            comparisons.push({higher: higher.name, lower: lower.name, difference, percentMore: lower.total ? difference / lower.total * 100 : null});
+          }
+          return {...scenario, rows, comparisons};
+        });
+        latestResult = {metadata, tokens, models, volumes, scenarios, calculatedAt: new Date().toISOString()};
+        renderResults(latestResult, !silent);
+        $("#saveStatus").textContent = "Calculado y guardado";
+        return true;
+      }
+
+      function renderErrors(errors) {
+        latestResult = null;
+        results.innerHTML = `<section class="card error-box" role="alert"><h2>No se realizó el cálculo</h2><p>Corrige estas entradas críticas:</p><ul class="error-list">${errors.map(error => `<li>${escapeHtml(error)}</li>`).join("")}</ul></section>`;
+        results.scrollIntoView({behavior: "smooth", block: "start"});
+      }
+
+      function renderResults(result, shouldScroll = true) {
+        const defaultScenario = result.scenarios[0];
+        const defaultVolume = result.volumes.includes(1_000_000) ? 1_000_000 : result.volumes[result.volumes.length - 1];
+        const cheapest = [...defaultScenario.rows].sort((a, b) => a.total - b.total)[0];
+        const costValues = defaultScenario.rows.map(row => row.total);
+        const spread = Math.max(...costValues) - Math.min(...costValues);
+        const maxOutputShare = Math.max(...defaultScenario.rows.map(row => row.outputShare));
+        const dominant = maxOutputShare >= 50 ? "Tokens de salida" : Math.max(...defaultScenario.rows.map(row => row.fixedShare)) >= 50 ? "Cargo fijo" : "Entrada / contexto";
+        results.innerHTML = `
+          <section class="card card-raised">
+            <div class="result-header">
+              <div><span class="status-badge ${result.metadata.estimated ? "estimated" : ""}"><span class="status-dot"></span>${result.metadata.estimated ? "Estimación declarada" : "Conteos declarados"}</span><h2>${escapeHtml(result.metadata.name)}</h2><p class="meta">Tarifas al ${escapeHtml(result.metadata.date)} · ${escapeHtml(result.metadata.tokenizer)} · ${escapeHtml(result.metadata.scope)}</p><p class="meta">Reporte elaborado por Jorge Valencia${result.metadata.useExchangeRate ? ` · Conversión ${escapeHtml(result.metadata.baseCurrency)} → ${escapeHtml(result.metadata.currency)} a ${result.metadata.exchangeRate}` : ""}</p></div>
+              <div class="toolbar no-print" style="margin:0"><button class="btn" id="exportCsv" type="button">Exportar CSV</button><button class="btn" id="printReport" type="button" title="Abre el diálogo del navegador; selecciona Guardar como PDF">Descargar reporte PDF</button></div>
+            </div>
+          </section>
+          <section class="kpi-grid" aria-label="Indicadores principales">
+            <article class="card kpi"><span class="kpi-label">Menor costo nominal</span><strong class="kpi-value">${money(cheapest.total, result.metadata.currency)}</strong><span class="kpi-context">${escapeHtml(cheapest.name)} · ${escapeHtml(defaultScenario.code)}</span></article>
+            <article class="card kpi"><span class="kpi-label">Costo al volumen de referencia</span><strong class="kpi-value">${money(cheapest.total * defaultVolume, result.metadata.currency, 4)}</strong><span class="kpi-context">${compactInt(defaultVolume)} llamadas con ${escapeHtml(cheapest.name)}</span></article>
+            <article class="card kpi"><span class="kpi-label">Diferencia máxima por llamada</span><strong class="kpi-value">${money(spread, result.metadata.currency)}</strong><span class="kpi-context">Entre el modelo más caro y el más barato</span></article>
+            <article class="card kpi"><span class="kpi-label">Variable dominante</span><strong class="kpi-value" style="font-size:1.55rem">${dominant}</strong><span class="kpi-context">Mayor participación observada en el escenario inicial</span></article>
+          </section>
+          ${renderExecutiveSummary(result, defaultScenario, defaultVolume, dominant)}
+          <section class="card">
+            <div class="section-heading"><div class="heading-copy"><h2>¿Qué opción cuesta menos al escalar?</h2><p>Barras ordenadas desde cero; selecciona escenario y volumen. El detalle exacto permanece en la tabla.</p></div></div>
+            <div class="chart-controls no-print">
+              <div class="field"><label for="chartScenario">Escenario</label><select class="control" id="chartScenario">${result.scenarios.map(s => `<option value="${escapeHtml(s.code)}">${escapeHtml(s.code)} · ${escapeHtml(s.label)}</option>`).join("")}</select></div>
+              <div class="field"><label for="chartVolume">Volumen</label><select class="control" id="chartVolume">${result.volumes.map(v => `<option value="${v}" ${v === defaultVolume ? "selected" : ""}>${compactInt(v)} llamadas</option>`).join("")}</select></div>
+            </div>
+            <div id="barChart" class="bar-chart" role="img" aria-label="Ranking de costos por modelo"></div>
+            <p class="meta" id="chartSummary"></p>
+          </section>
+          <section class="card">
+            <div class="section-heading"><div class="heading-copy"><h2>Tabla de costos completa</h2><p>Valores calculados con precisión completa; el formato visual redondea únicamente para lectura.</p></div></div>
+            ${renderCostTable(result)}
+          </section>
+          <section class="card">
+            <div class="section-heading"><div class="heading-copy"><h2>Diferencias entre modelos</h2><p>“% más caro” usa como denominador el modelo de menor costo de cada par.</p></div></div>
+            ${renderComparisonTable(result)}
+          </section>
+          <section class="insight-grid">
+            ${renderInsights(result)}
+          </section>
+          <section class="card">
+            <div class="section-heading"><div class="heading-copy"><h2>Fórmulas y trazabilidad</h2><p>Cada cifra puede rastrearse hasta tokens, tarifas, multiplicador y cargo fijo.</p></div></div>
+            <div class="formula-list">${result.scenarios.flatMap(s => s.rows.map(r => `<div class="formula">${escapeHtml(s.code)} · ${escapeHtml(r.name)}: ${escapeHtml(r.formula)} = ${escapeHtml(money(r.total, result.metadata.currency, 12))}</div>`)).join("")}</div>
+          </section>
+          <section class="card">
+            <details open><summary>Fuentes y vigencia</summary>${renderSources(result)}</details>
+            <details><summary>Supuestos y límites</summary><ul><li>El costo nominal no mide calidad, latencia, seguridad ni adecuación.</li><li>Los tokenizadores varían entre proveedores; un conteo normalizado no sustituye la factura.</li><li>No se incluyen impuestos ni cargos no declarados.</li><li>${result.metadata.useExchangeRate ? "El tipo de cambio convierte todos los costos de forma lineal y no altera las diferencias porcentuales." : "No se aplicó conversión cambiaria."}</li><li>Las estimaciones por caracteres son hipótesis explícitas y deben reemplazarse por conteos del proveedor.</li>${result.metadata.outputBudgetUsed ? "<li>La salida todavía no existía: se utilizó un presupuesto de tokens editable, no una respuesta observada.</li>" : ""}<li>Los costos escalan linealmente; descuentos o tramos deben modelarse con tarifas separadas.</li></ul></details>
+          </section>
+          ${renderDetailedExecutiveConclusion(result, defaultVolume, dominant)}`;
+        $("#chartScenario").addEventListener("change", renderChart);
+        $("#chartVolume").addEventListener("change", renderChart);
+        $("#exportCsv").addEventListener("click", exportCsv);
+        $("#printReport").addEventListener("click", () => window.print());
+        renderChart();
+        if (shouldScroll) results.scrollIntoView({behavior: "smooth", block: "start"});
+      }
+
+      function renderExecutiveSummary(result, scenario, volume, dominant) {
+        const ranked = [...scenario.rows].sort((a, b) => a.total - b.total);
+        const best = ranked[0], worst = ranked[ranked.length - 1];
+        const absoluteSaving = (worst.total - best.total) * volume;
+        const relativeSaving = worst.total ? (worst.total - best.total) / worst.total * 100 : 0;
+        const scenarioCost = best.total * volume;
+        const exchange = result.metadata.useExchangeRate
+          ? `Los importes se convirtieron de ${escapeHtml(result.metadata.baseCurrency)} a ${escapeHtml(result.metadata.currency)} con 1 ${escapeHtml(result.metadata.baseCurrency)} = ${result.metadata.exchangeRate} ${escapeHtml(result.metadata.currency)}, vigente al ${escapeHtml(result.metadata.exchangeRateDate)}.`
+          : `Los importes permanecen en ${escapeHtml(result.metadata.currency)}; no se aplicó tipo de cambio.`;
+        return `<section class="card executive-summary"><div class="section-heading"><div class="heading-copy"><h2>Resumen ejecutivo</h2><p>Lectura para decisión del escenario inicial y el volumen de referencia.</p></div></div><ul><li><strong>Opción de menor costo:</strong> ${escapeHtml(best.name)} totaliza ${escapeHtml(money(scenarioCost, result.metadata.currency, 6))} para ${compactInt(volume)} llamadas de “${escapeHtml(scenario.label)}”.</li><li><strong>Brecha económica:</strong> frente a ${escapeHtml(worst.name)}, la diferencia es ${escapeHtml(money(absoluteSaving, result.metadata.currency, 6))}, equivalente a ${pct(relativeSaving)} del costo de la alternativa más cara.</li><li><strong>Palanca principal:</strong> ${escapeHtml(dominant)} explica la mayor participación observada; úsala como primera variable de control, sin asumir causalidad fuera de los datos ingresados.</li><li><strong>Tipo de cambio:</strong> ${exchange}</li><li><strong>Recomendación:</strong> valida calidad y tasa de resolución antes de automatizar el enrutamiento al modelo de menor costo; controla costo por caso resuelto, tokens por llamada y desviación frente al presupuesto.</li></ul></section>`;
+      }
+
+      function renderDetailedExecutiveConclusion(result, volume, dominant) {
+        const scenarioWins = new Map();
+        result.scenarios.forEach(scenario => {
+          const winner = [...scenario.rows].sort((a, b) => a.total - b.total)[0];
+          scenarioWins.set(winner.name, (scenarioWins.get(winner.name) || 0) + 1);
+        });
+        const [leaderName, leaderWins] = [...scenarioWins.entries()].sort((a, b) => b[1] - a[1])[0];
+        const reference = result.scenarios[0];
+        const ranked = [...reference.rows].sort((a, b) => a.total - b.total);
+        const best = ranked[0], worst = ranked[ranked.length - 1];
+        const bestScaled = best.total * volume;
+        const worstScaled = worst.total * volume;
+        const absoluteSaving = worstScaled - bestScaled;
+        const relativeSaving = worstScaled ? absoluteSaving / worstScaled * 100 : 0;
+        const countingBasis = result.metadata.outputBudgetUsed
+          ? "La salida se modeló con un presupuesto de tokens porque todavía no existía una respuesta; no debe interpretarse como texto observado ni como consumo facturado."
+          : result.metadata.estimated
+          ? "Los tokens son una estimación y deben sustituirse por conteos del proveedor antes de comprometer presupuesto."
+          : "Los tokens fueron declarados como conteos; aun así, la factura del proveedor es la referencia final.";
+        const exchangeNote = result.metadata.useExchangeRate
+          ? `Los importes se convirtieron de ${result.metadata.baseCurrency} a ${result.metadata.currency} con una tasa de ${result.metadata.exchangeRate}, vigente al ${result.metadata.exchangeRateDate}; una variación cambiaria modificará los montos, pero no el orden relativo si se aplica por igual.`
+          : `Los resultados permanecen en ${result.metadata.currency} y no incorporan riesgo cambiario.`;
+        const paragraphs = [
+          `Este reporte compara ${result.models.length} modelo${result.models.length === 1 ? "" : "s"} en ${result.scenarios.length} escenario${result.scenarios.length === 1 ? "" : "s"}, con tarifas fechadas al ${result.metadata.date} y un volumen de referencia de ${compactInt(volume)} llamadas. En “${reference.label}”, ${best.name} presenta el menor costo nominal: ${money(bestScaled, result.metadata.currency, 6)}, frente a ${money(worstScaled, result.metadata.currency, 6)} de ${worst.name}. La diferencia potencial es ${money(absoluteSaving, result.metadata.currency, 6)}, equivalente a ${pct(relativeSaving)} del costo de la alternativa más cara.`,
+          `Al ampliar la lectura, ${leaderName} obtiene el menor costo en ${leaderWins} de ${result.scenarios.length} escenarios. La variable con mayor participación en el escenario inicial es ${dominant}; por ello, la primera palanca de control debe concentrarse allí, ya sea reduciendo contexto, limitando la salida o revisando cargos fijos. Esta conclusión describe la estructura económica observada y no demuestra por sí sola superioridad operativa.`,
+          `La recomendación es automatizar un enrutamiento por complejidad: utilizar la opción de menor costo únicamente cuando supere umbrales de calidad, latencia y resolución, y escalar los casos ambiguos o sensibles. Monitorea costo por caso resuelto, tokens por llamada y desviación contra presupuesto. ${countingBasis} ${exchangeNote} No se incluyen impuestos, descuentos por volumen ni cargos no declarados.`
+        ];
+        const countWords = text => text.trim().split(/\s+/).filter(Boolean).length;
+        let narrative = paragraphs.join("\n\n");
+        let words = countWords(narrative);
+        if (words > 250) {
+          narrative = narrative.trim().split(/\s+/).slice(0, 249).join(" ") + "…";
+          words = countWords(narrative);
+        }
+        const body = narrative.split("\n\n").map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("");
+        return `<section class="card executive-conclusion" aria-labelledby="detailedExecutiveTitle"><div class="section-heading"><div class="heading-copy"><h2 id="detailedExecutiveTitle">Conclusión ejecutiva ampliada</h2><p>Síntesis final para decisión · máximo 250 palabras.</p></div></div><div class="executive-conclusion__body">${body}</div><div class="executive-conclusion__meta"><span>Elaborado por Jorge Valencia</span><span>${words} palabras · extensión máxima: media cuartilla</span></div></section>`;
+      }
+
+      function renderChart() {
+        if (!latestResult) return;
+        const scenario = latestResult.scenarios.find(s => s.code === $("#chartScenario").value) || latestResult.scenarios[0];
+        const volume = Number($("#chartVolume").value);
+        const rows = [...scenario.rows].sort((a, b) => a.total - b.total);
+        const max = Math.max(...rows.map(row => row.total * volume), 0);
+        $("#barChart").innerHTML = rows.map((row, index) => {
+          const value = row.total * volume;
+          const width = max ? value / max * 100 : 0;
+          return `<div class="bar-row"><div class="bar-label">${index + 1}. ${escapeHtml(row.name)}</div><div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width:${width}%;background:${row.color}"></div></div><div class="bar-value">${escapeHtml(money(value, latestResult.metadata.currency, 8))}</div></div>`;
+        }).join("");
+        const best = rows[0], worst = rows[rows.length - 1];
+        const saving = worst.total ? (worst.total - best.total) / worst.total * 100 : 0;
+        $("#chartSummary").textContent = `${scenario.code}: ${best.name} tiene el menor costo nominal. Frente a ${worst.name}, la diferencia al volumen seleccionado es ${money((worst.total - best.total) * volume, latestResult.metadata.currency)} y el ahorro relativo es ${pct(saving)}.`;
+        $("#barChart").setAttribute("aria-label", `Gráfica de barras de costo para ${scenario.label} y ${compactInt(volume)} llamadas. Menor costo: ${best.name}, ${money(best.total * volume, latestResult.metadata.currency)}. Mayor costo: ${worst.name}, ${money(worst.total * volume, latestResult.metadata.currency)}.`);
+      }
+
+      function renderCostTable(result) {
+        const headers = result.volumes.map(v => `<th>${compactInt(v)} llamadas</th>`).join("");
+        const rows = result.scenarios.flatMap(s => s.rows.map(r => `<tr><td>${escapeHtml(s.code)} · ${escapeHtml(s.label)}</td><td>${escapeHtml(r.name)}</td><td>${compactInt(s.input + s.cached)}</td><td>${compactInt(s.output)}</td><td>${money(r.total, result.metadata.currency, 10)}</td>${result.volumes.map(v => `<td>${money(r.scaled[v], result.metadata.currency, 6)}</td>`).join("")}<td>${pct(r.outputShare)}</td></tr>`)).join("");
+        return `<div class="table-wrap"><table><caption class="sr-only">Costos por escenario, modelo y volumen</caption><thead><tr><th>Escenario</th><th>Modelo</th><th>Tokens entrada</th><th>Tokens salida</th><th>Por llamada</th>${headers}<th>Salida %</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      }
+      function renderComparisonTable(result) {
+        const rows = result.scenarios.flatMap(s => s.comparisons.map(c => `<tr><td>${escapeHtml(s.code)}</td><td>${escapeHtml(c.higher)}</td><td>${escapeHtml(c.lower)}</td><td>${money(c.difference, result.metadata.currency, 10)}</td><td>${c.percentMore == null ? "N/D" : pct(c.percentMore)}</td></tr>`)).join("");
+        return rows ? `<div class="table-wrap"><table><caption class="sr-only">Diferencias absolutas y porcentuales</caption><thead><tr><th>Escenario</th><th>Más caro</th><th>Más barato</th><th>Diferencia por llamada</th><th>% más caro</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="meta">Agrega al menos dos modelos para comparar.</p>`;
+      }
+      function renderInsights(result) {
+        const allRows = result.scenarios.flatMap(s => s.rows.map(row => ({...row, scenario: s.code})));
+        const outputMax = [...allRows].sort((a, b) => b.outputShare - a.outputShare)[0];
+        const inputMax = [...allRows].sort((a, b) => b.inputShare - a.inputShare)[0];
+        const fixedMax = [...allRows].sort((a, b) => b.fixedShare - a.fixedShare)[0];
+        const insights = [
+          {title: "Salida", value: outputMax.outputShare, text: `${outputMax.name} en ${outputMax.scenario}: ${pct(outputMax.outputShare)} del costo. ${outputMax.outputShare >= 60 ? "Controla max_output_tokens y usa respuestas breves por defecto." : "No domina el costo en este caso."}`},
+          {title: "Entrada y contexto", value: inputMax.inputShare, text: `${inputMax.name} en ${inputMax.scenario}: ${pct(inputMax.inputShare)}. ${inputMax.inputShare >= 40 ? "Evalúa caché, poda de historial y recuperación selectiva." : "Su impacto relativo es secundario."}`},
+          {title: "Cargos fijos", value: fixedMax.fixedShare, text: `${fixedMax.name} en ${fixedMax.scenario}: ${pct(fixedMax.fixedShare)}. ${fixedMax.fixedShare >= 40 ? "Revisa herramientas por llamada y consolidación de solicitudes." : "No explican la mayor parte del costo."}`},
+          {title: "Decisión", value: 0, text: "Enruta por complejidad: usa el menor costo que supere una prueba de calidad y escala casos ambiguos o sensibles. Monitorea costo por resolución, no solo por llamada."}
+        ];
+        return insights.map((item, index) => `<article class="insight ${index === 3 ? "warning" : ""}"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.text)}</p></article>`).join("");
+      }
+      function renderSources(result) {
+        const fxRow = result.metadata.useExchangeRate ? `<tr><td>Conversión</td><td>${escapeHtml(result.metadata.baseCurrency)} → ${escapeHtml(result.metadata.currency)}</td><td>1 = ${result.metadata.exchangeRate}</td><td><a href="${escapeHtml(result.metadata.exchangeRateUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(result.metadata.exchangeRateSource)}</a></td><td>${escapeHtml(result.metadata.exchangeRateDate)}</td></tr>` : "";
+        return `<div class="table-wrap"><table><caption class="sr-only">Fuentes de precios y tipo de cambio</caption><thead><tr><th>Proveedor</th><th>Modelo</th><th>Modalidad</th><th>Fuente</th><th>Fecha</th></tr></thead><tbody>${result.models.map(m => `<tr><td>${escapeHtml(m.provider)}</td><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.mode)}</td><td><a href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.source)}</a></td><td>${escapeHtml(result.metadata.date)}</td></tr>`).join("")}${fxRow}</tbody></table></div>`;
+      }
+
+      function exportCsv() {
+        if (!latestResult) return;
+        const rows = [["escenario","descripcion","proveedor","modelo","tokens_entrada","tokens_cache","tokens_salida","costo_entrada","costo_cache","costo_salida","cargo_fijo","costo_por_llamada",...latestResult.volumes.map(v => `costo_${v}_llamadas`),"moneda_reporte","moneda_tarifas","tipo_cambio","fecha_tarifa","fuente_url"]];
+        latestResult.scenarios.forEach(s => s.rows.forEach(r => rows.push([s.code,s.label,r.provider,r.name,s.input,s.cached,s.output,r.inputCost,r.cacheCost,r.outputCost,r.fixed,r.total,...latestResult.volumes.map(v => r.scaled[v]),latestResult.metadata.currency,latestResult.metadata.baseCurrency,latestResult.metadata.exchangeRate,latestResult.metadata.date,r.url])));
+        const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+        const blob = new Blob(["\ufeff" + csv], {type: "text/csv;charset=utf-8"});
+        const url = URL.createObjectURL(blob); const link = document.createElement("a");
+        link.href = url; link.download = "tokeniza-ia-resultados.csv"; link.style.display = "none"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+
+      function downloadFile(name, content, type) {
+        const blob = new Blob([content], {type});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url; link.download = name; link.style.display = "none"; document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+
+      function setImportStatus(message, tone = "") {
+        const status = $("#importStatus");
+        status.textContent = message;
+        status.className = `import-status ${tone}`.trim();
+      }
+
+      function exportConfiguration() {
+        const payload = {...snapshotForm(), schema:"tokeniza-ia/config-v4", exportedAt:new Date().toISOString(), author:"Jorge Valencia"};
+        downloadFile("tokeniza-ia-configuracion.json", JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+        setImportStatus("Configuración exportada. Puede volver a arrastrarla para recuperar todo el análisis.", "success");
+      }
+
+      function downloadCsvTemplate() {
+        const headers = ["record_type","name","provider","input_tokens","cached_tokens","output_tokens","input_price_per_million","output_price_per_million","cache_price_per_million","fixed_cost_per_call","multiplier_percent","mode","source","source_url","analysis_name","currency","pricing_date","tokenizer","scope","volumes"];
+        const blankScenario = ["scenario","Escenario 1","","","0","","","","","","","","","","Análisis de costos de IA","USD","","","","1|1000|10000|1000000"];
+        const blankModel = ["model","Modelo 1","Proveedor","","","","","","0","0","100","Standard",defaultPricingSource,defaultPricingUrl,"","","","","",""];
+        const csv = [headers, blankScenario, blankModel].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+        downloadFile("tokeniza-ia-plantilla.csv", "\ufeff" + csv, "text/csv;charset=utf-8");
+        setImportStatus("Plantilla CSV descargada. Complete únicamente datos verificados y vuelva a arrastrarla aquí.", "success");
+      }
+
+      function normalizeHeader(value) {
+        return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      }
+
+      function parseDelimited(text) {
+        const firstLine = text.replace(/^\ufeff/, "").split(/\r?\n/, 1)[0] || "";
+        const delimiter = [",", ";", "\t"].sort((a, b) => firstLine.split(b).length - firstLine.split(a).length)[0];
+        const rows = []; let row = []; let field = ""; let quoted = false;
+        const source = text.replace(/^\ufeff/, "");
+        for (let i = 0; i < source.length; i++) {
+          const char = source[i], next = source[i + 1];
+          if (char === '"' && quoted && next === '"') { field += '"'; i++; }
+          else if (char === '"') quoted = !quoted;
+          else if (char === delimiter && !quoted) { row.push(field); field = ""; }
+          else if ((char === "\n" || char === "\r") && !quoted) {
+            if (char === "\r" && next === "\n") i++;
+            row.push(field); field = ""; if (row.some(cell => cell.trim() !== "")) rows.push(row); row = [];
+          } else field += char;
+        }
+        row.push(field); if (row.some(cell => cell.trim() !== "")) rows.push(row);
+        if (rows.length < 2) throw new Error("El CSV no contiene filas de datos.");
+        const headers = rows[0].map(normalizeHeader);
+        return rows.slice(1).map(values => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])));
+      }
+
+      function fieldFrom(row, aliases) {
+        for (const alias of aliases) if (row[alias] != null && String(row[alias]).trim() !== "") return String(row[alias]).trim();
+        return "";
+      }
+
+      function snapshotFromCsv(text) {
+        const rows = parseDelimited(text);
+        const scenarios = [], models = [];
+        const first = rows[0] || {};
+        rows.forEach((row, index) => {
+          const type = normalizeHeader(fieldFrom(row, ["record_type","tipo_registro","tipo"]));
+          const scenarioSignals = fieldFrom(row, ["input_tokens","tokens_entrada","entrada_tokens"]) || fieldFrom(row, ["output_tokens","tokens_salida","salida_tokens"]);
+          const modelSignals = fieldFrom(row, ["input_price_per_million","precio_entrada_por_millon","precio_entrada_1m"]) || fieldFrom(row, ["output_price_per_million","precio_salida_por_millon","precio_salida_1m"]);
+          if (type === "scenario" || type === "escenario" || (!type && scenarioSignals && !modelSignals)) {
+            scenarios.push({
+              name:fieldFrom(row,["name","nombre","escenario"]) || `Escenario ${index + 1}`,
+              input:fieldFrom(row,["input_tokens","tokens_entrada","entrada_tokens"]),
+              cached:fieldFrom(row,["cached_tokens","tokens_cache","tokens_cacheados"]) || 0,
+              output:fieldFrom(row,["output_tokens","tokens_salida","salida_tokens"])
+            });
+          }
+          if (type === "model" || type === "modelo" || (!type && modelSignals)) {
+            models.push({
+              provider:fieldFrom(row,["provider","proveedor"]), name:fieldFrom(row,["name","nombre","modelo"]),
+              input:fieldFrom(row,["input_price_per_million","precio_entrada_por_millon","precio_entrada_1m"]),
+              output:fieldFrom(row,["output_price_per_million","precio_salida_por_millon","precio_salida_1m"]),
+              cache:fieldFrom(row,["cache_price_per_million","precio_cache_por_millon","precio_cache_1m"]) || 0,
+              fixed:fieldFrom(row,["fixed_cost_per_call","cargo_fijo_por_llamada","cargo_fijo"]) || 0,
+              multiplier:fieldFrom(row,["multiplier_percent","multiplicador_porcentaje","multiplicador"]) || 100,
+              mode:fieldFrom(row,["mode","modalidad"]), source:fieldFrom(row,["source","fuente"]), url:fieldFrom(row,["source_url","fuente_url","url"])
+            });
+          }
+        });
+        if (!scenarios.length && !models.length) throw new Error("No se detectaron filas de tipo scenario/escenario o model/modelo.");
+        const current = snapshotForm();
+        const volumesRaw = fieldFrom(first,["volumes","volumenes"]);
+        return {
+          ...current,
+          analysisName:fieldFrom(first,["analysis_name","nombre_analisis"]) || current.analysisName,
+          currency:fieldFrom(first,["currency","moneda"]) || current.currency,
+          pricingDate:fieldFrom(first,["pricing_date","fecha_tarifas","fecha"]) || current.pricingDate,
+          tokenizer:fieldFrom(first,["tokenizer","tokenizador","metodo"]) || current.tokenizer,
+          scopeNote:fieldFrom(first,["scope","alcance"]) || current.scopeNote,
+          scenarioMode:scenarios.length ? "custom" : current.scenarioMode,
+          tokenMethod:scenarios.length ? "exact" : current.tokenMethod,
+          values:{...current.values, ...(volumesRaw ? {volumes:volumesRaw.split("|").join(", ")} : {})},
+          customExact:scenarios.length ? scenarios : current.customExact,
+          models:models.length ? models : current.models
+        };
+      }
+
+      function snapshotFromJson(data) {
+        if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("El JSON debe contener un objeto de configuración.");
+        if (data.customExact || data.values || data.scenarioMode) return data;
+        const current = snapshotForm();
+        const scenarios = Array.isArray(data.scenarios) ? data.scenarios.map((item, index) => ({name:item.name || item.nombre || `Escenario ${index + 1}`, input:item.input ?? item.input_tokens ?? item.tokens_entrada ?? "", cached:item.cached ?? item.cached_tokens ?? item.tokens_cache ?? 0, output:item.output ?? item.output_tokens ?? item.tokens_salida ?? ""})) : [];
+        const models = Array.isArray(data.models) ? data.models.map(item => ({provider:item.provider ?? item.proveedor ?? "", name:item.name ?? item.nombre ?? item.model ?? "", input:item.input ?? item.input_price_per_million ?? item.precio_entrada ?? "", output:item.output ?? item.output_price_per_million ?? item.precio_salida ?? "", cache:item.cache ?? item.cache_price_per_million ?? item.precio_cache ?? 0, fixed:item.fixed ?? item.fixed_cost_per_call ?? item.cargo_fijo ?? 0, multiplier:item.multiplier ?? item.multiplier_percent ?? 100, mode:item.mode ?? item.modalidad ?? "", source:item.source ?? item.fuente ?? "", url:item.url ?? item.source_url ?? ""})) : [];
+        return {...current, analysisName:data.analysisName ?? data.analysis_name ?? current.analysisName, currency:data.currency ?? data.moneda ?? current.currency, pricingDate:data.pricingDate ?? data.pricing_date ?? current.pricingDate, tokenizer:data.tokenizer ?? current.tokenizer, scopeNote:data.scopeNote ?? data.scope ?? current.scopeNote, scenarioMode:scenarios.length ? "custom" : current.scenarioMode, tokenMethod:scenarios.length ? "exact" : current.tokenMethod, customExact:scenarios.length ? scenarios : current.customExact, models:models.length ? models : current.models};
+      }
+
+      function splitLabeledText(text) {
+        const aliases = "texto de entrada|entrada|prompt|pregunta(?: larga| corta)?|input|usuario|user|cliente|texto de salida|salida|respuesta(?: larga| corta)?|output|response|asistente|assistant|agente";
+        const sections = {inputText:[], outputText:[]};
+        let active = "";
+        let markers = 0;
+        String(text).split(/\r?\n/).forEach(line => {
+          const heading = line.match(new RegExp(`^\\s{0,3}#{1,6}\\s+(${aliases})\\s*:?[ \\t]*$`, "i"));
+          const label = line.match(new RegExp(`^\\s*(${aliases})\\s*:\\s*(.*)$`, "i"));
+          const match = heading || label;
+          if (match) {
+            const normalized = match[1].toLowerCase();
+            active = /^(texto de entrada|entrada|prompt|pregunta|input|usuario|user|cliente)/i.test(normalized) ? "inputText" : "outputText";
+            markers++;
+            const inlineText = label ? label[2].trim() : "";
+            if (active && inlineText) sections[active].push(inlineText);
+          } else if (active) sections[active].push(line);
+        });
+        if (!markers) return null;
+        return {inputText:sections.inputText.join("\n").trim(), outputText:sections.outputText.join("\n").trim()};
+      }
+
+      async function snapshotFromTextFiles(files) {
+        const items = await Promise.all(files.map(async file => ({name:file.name.replace(/\.(txt|md)$/i, ""), text:await file.text()})));
+        const groups = new Map();
+        items.forEach(item => {
+          const detected = splitLabeledText(item.text);
+          const isOutput = /(^|[\s_.-])(salida|respuesta|output|response)($|[\s_.-])/i.test(item.name);
+          const base = item.name.replace(/(^|[\s_.-])(entrada|prompt|input|salida|respuesta|output|response)($|[\s_.-])/ig, " ").replace(/[_.-]+/g, " ").trim() || "Escenario importado";
+          if (!groups.has(base)) groups.set(base, {name:base, inputText:"", outputText:""});
+          if (detected && (detected.inputText || detected.outputText)) {
+            if (detected.inputText) groups.get(base).inputText = detected.inputText;
+            if (detected.outputText) groups.get(base).outputText = detected.outputText;
+          } else groups.get(base)[isOutput ? "outputText" : "inputText"] = item.text;
+        });
+        if (groups.size === 2 && items.length === 2) {
+          const values = [...groups.values()];
+          const inputOnly = values.find(v => v.inputText && !v.outputText), outputOnly = values.find(v => v.outputText && !v.inputText);
+          if (inputOnly && outputOnly) return [{name:"Escenario importado", inputText:inputOnly.inputText, outputText:outputOnly.outputText}];
+        }
+        return [...groups.values()];
+      }
+
+      async function handleFiles(fileList) {
+        const files = [...fileList];
+        if (!files.length) return;
+        setImportStatus(`Leyendo ${files.length} archivo${files.length === 1 ? "" : "s"}…`);
+        try {
+          const configs = files.filter(file => /\.json$/i.test(file.name));
+          const csvs = files.filter(file => /\.csv$/i.test(file.name));
+          const texts = files.filter(file => /\.(txt|md)$/i.test(file.name));
+          if (configs.length > 1 || csvs.length > 1) throw new Error("Importe un solo JSON o CSV por operación; los TXT/MD sí pueden cargarse en conjunto.");
+          if (configs.length) applySnapshot(snapshotFromJson(JSON.parse(await configs[0].text())));
+          if (csvs.length) applySnapshot(snapshotFromCsv(await csvs[0].text()));
+          let importDetail = "";
+          if (texts.length) {
+            const scenarios = await snapshotFromTextFiles(texts);
+            const current = snapshotForm();
+            const missing = scenarios.filter(scenario => !scenario.outputText.trim());
+            const useRatio = $("#missingOutputMode").value === "ratio";
+            if (missing.length && useRatio) {
+              const ratio = finiteNumber($("#missingOutputRatio").value);
+              const factor = finiteNumber($("#charsPerToken").value);
+              if (!(ratio > 0)) throw new Error("Indica un porcentaje de salida mayor que cero para crear el presupuesto automático.");
+              if (!(factor > 0)) throw new Error("El supuesto de caracteres por token debe ser mayor que cero.");
+              missing.forEach(scenario => { scenario.outputBudget = Math.ceil(estimateTokens(scenario.inputText, factor) * ratio / 100); });
+              importDetail = ` No había texto de salida en ${missing.length} escenario${missing.length === 1 ? "" : "s"}; se creó un presupuesto editable equivalente al ${ratio}% de la entrada estimada.`;
+            } else if (missing.length) {
+              importDetail = ` No se encontró texto de salida en ${missing.length} escenario${missing.length === 1 ? "" : "s"}; quedó pendiente porque una respuesta inexistente no puede identificarse ni inventarse.`;
+            } else importDetail = " Se identificaron automáticamente las secciones de entrada y salida.";
+            const scope = missing.length && useRatio
+              ? `Texto visible importado desde archivos locales; salida presupuestada con una proporción declarada de ${$("#missingOutputRatio").value}%`
+              : "Texto visible importado desde archivos locales";
+            const common = {...current, tokenMethod:"estimate", tokenizer:"Estimación por caracteres · factor declarado", scopeNote:scope};
+            if (scenarios.length === 1) applySnapshot({...common, scenarioMode:"single", values:{...current.values, singleInputText:scenarios[0].inputText, singleOutputText:scenarios[0].outputText, singleOutputBudget:scenarios[0].outputBudget ?? ""}});
+            else applySnapshot({...common, scenarioMode:"custom", customEstimate:scenarios});
+          }
+          if (!configs.length && !csvs.length && !texts.length) throw new Error("Formato no compatible. Use JSON, CSV, TXT o Markdown.");
+          localStorage.setItem(storageKey, JSON.stringify(snapshotForm()));
+          const calculated = $("#autoCalculate").checked ? calculate(true) : false;
+          setImportStatus((calculated ? "Importación completa: datos mapeados, validados, calculados y guardados." : "Importación completa. Revise los campos pendientes resaltados por la validación antes de calcular.") + importDetail, calculated ? "success" : "warning");
+        } catch (error) {
+          setImportStatus(`No se pudo importar: ${error.message}`, "error");
+        } finally { $("#fileInput").value = ""; }
+      }
+
+      function scheduleAutomation() {
+        clearTimeout(saveTimer); clearTimeout(calculateTimer);
+        $("#saveStatus").textContent = "Guardando cambios…";
+        saveTimer = setTimeout(() => {
+          localStorage.setItem(storageKey, JSON.stringify(snapshotForm()));
+          $("#saveStatus").textContent = "Autoguardado actualizado";
+        }, 300);
+        if ($("#autoCalculate").checked) calculateTimer = setTimeout(() => calculate(true), 850);
+      }
+
+      function snapshotForm() {
+        return {
+          schemaVersion: 4, author: "Jorge Valencia",
+          analysisName: $("#analysisName").value, currency: $("#currency").value, pricingDate: $("#pricingDate").value,
+          tokenizer: $("#tokenizer").value, scopeNote: $("#scopeNote").value, scenarioMode: currentMode(), tokenMethod: currentMethod(),
+          useExchangeRate: $("#useExchangeRate").checked,
+          autoCalculate: $("#autoCalculate").checked, autoRestore: $("#autoRestore").checked,
+          values: Object.fromEntries(["reportCurrency","exchangeRate","exchangeRateDate","exchangeRateSource","exchangeRateUrl","singleInput","singleCached","singleOutput","inputLong","inputShort","outputLong","outputShort","singleInputText","singleOutputText","singleOutputBudget","inputLongText","inputShortText","outputLongText","outputShortText","charsPerToken","volumes","missingOutputMode","missingOutputRatio"].map(id => [id, $(`#${id}`).value])),
+          customExact: $$(".scenario-card", $("#customScenarioListExact")).map(card => ({name:$(".scenario-name",card).value,input:$(".scenario-input",card).value,cached:$(".scenario-cached",card).value,output:$(".scenario-output",card).value})),
+          customEstimate: $$(".scenario-card", $("#customScenarioListEstimate")).map(card => ({name:$(".scenario-name",card).value,inputText:$(".scenario-input-text",card).value,outputText:$(".scenario-output-text",card).value,outputBudget:$(".scenario-output-budget",card).value})),
+          models: $$(".model-card", $("#modelList")).map(card => ({provider:$(".model-provider",card).value,name:$(".model-name",card).value,input:$(".model-input",card).value,output:$(".model-output",card).value,cache:$(".model-cache",card).value,fixed:$(".model-fixed",card).value,multiplier:$(".model-multiplier",card).value,mode:$(".model-mode",card).value,source:$(".model-source",card).value,url:$(".model-url",card).value}))
+        };
+      }
+      function applySnapshot(data) {
+        if (!data) return;
+        ["analysisName","currency","pricingDate","tokenizer","scopeNote"].forEach(id => {
+          if (data[id] == null) return;
+          const element = $(`#${id}`);
+          if (element.tagName === "SELECT") ensureSelectValue(element, data[id]); else element.value = data[id];
+        });
+        const modeInput = $(`input[name='scenarioMode'][value='${data.scenarioMode || "single"}']`); if (modeInput) modeInput.checked = true;
+        const methodInput = $(`input[name='tokenMethod'][value='${data.tokenMethod || "exact"}']`); if (methodInput) methodInput.checked = true;
+        $("#useExchangeRate").checked = Boolean(data.useExchangeRate);
+        if (data.autoCalculate != null) $("#autoCalculate").checked = Boolean(data.autoCalculate);
+        if (data.autoRestore != null) $("#autoRestore").checked = Boolean(data.autoRestore);
+        $("#exchangeRateFields").classList.toggle("hidden", !$("#useExchangeRate").checked);
+        Object.entries(data.values || {}).forEach(([id, value]) => {
+          const element = $(`#${id}`);
+          if (!element) return;
+          if (element.tagName === "SELECT") ensureSelectValue(element, value); else element.value = value;
+        });
+        syncMissingOutputOptions();
+        $("#customScenarioListExact").innerHTML = ""; (data.customExact?.length ? data.customExact : [{name:"Escenario 1"},{name:"Escenario 2"}]).forEach(item => addScenario("exact", item));
+        $("#customScenarioListEstimate").innerHTML = ""; (data.customEstimate?.length ? data.customEstimate : [{name:"Escenario 1"},{name:"Escenario 2"}]).forEach(item => addScenario("estimate", item));
+        $("#modelList").innerHTML = ""; (data.models?.length ? data.models : defaultModels()).forEach(addModel); syncTokenPanels();
+      }
+      function loadExample() {
+        applySnapshot({
+          analysisName:"Escenarios de atención al cliente",currency:"USD",pricingDate:defaultPricingDate,tokenizer:"OpenAI tiktoken · o200k_base · 0.14.0",scopeNote:"Solo texto visible; excluye sistema, historial, herramientas y razonamiento",scenarioMode:"matrix",tokenMethod:"exact",useExchangeRate:false,
+          values:{inputLong:61,inputShort:8,outputLong:3630,outputShort:153,volumes:"1, 1000, 10000, 1000000",charsPerToken:4},
+          models:defaultModels()
+        });
+      }
+
+      function resetCalculator() {
+        localStorage.removeItem(storageKey);
+        latestResult = null;
+        $("#analysisName").value = "Análisis de costos de IA";
+        $("#currency").value = "USD";
+        $("#pricingDate").value = defaultPricingDate;
+        $("#tokenizer").value = "";
+        $("#scopeNote").value = "";
+        $("#useExchangeRate").checked = false;
+        $("#exchangeRateFields").classList.add("hidden");
+        $("#reportCurrency").value = "MXN";
+        $("#exchangeRate").value = "";
+        $("#exchangeRateDate").value = todayLocal();
+        $("#exchangeRateSource").value = "";
+        $("#exchangeRateUrl").value = "";
+        setExchangeApiStatus("Frankfurter API v2 · sin clave · tasa de referencia, no intradía.");
+        $("#modeSingle").checked = true;
+        $("#methodExact").checked = true;
+        $("#autoCalculate").checked = true;
+        $("#autoRestore").checked = true;
+        ["singleInput","singleOutput","inputLong","inputShort","outputLong","outputShort","singleInputText","singleOutputText","singleOutputBudget","inputLongText","inputShortText","outputLongText","outputShortText","missingOutputRatio"].forEach(id => $(`#${id}`).value = "");
+        $("#missingOutputMode").value = "pending";
+        syncMissingOutputOptions();
+        $("#singleCached").value = 0;
+        $("#charsPerToken").value = 4;
+        $("#volumes").value = "1, 1000, 10000, 1000000";
+        $("#customScenarioListExact").innerHTML = ""; addScenario("exact", {name:"Escenario 1"}); addScenario("exact", {name:"Escenario 2"});
+        $("#customScenarioListEstimate").innerHTML = ""; addScenario("estimate", {name:"Escenario 1"}); addScenario("estimate", {name:"Escenario 2"});
+        $("#modelList").innerHTML = ""; defaultModels().forEach(addModel);
+        results.innerHTML = `<div class="card empty-state"><div><div class="empty-icon" aria-hidden="true">∑</div><h2>Configura el análisis</h2><p>Completa tokens, fuentes y tarifas. La calculadora no producirá costos si falta una entrada crítica.</p></div></div>`;
+        $("#saveStatus").textContent = "Autoguardado activo";
+        setImportStatus("Calculadora restablecida. Listo para importar nuevos datos.", "success");
+        syncTokenPanels();
+        window.scrollTo({top:0, behavior:"smooth"});
+      }
+
+      $("#addModel").addEventListener("click", () => { addModel(); scheduleAutomation(); });
+      $("#restoreDefaultModels").addEventListener("click", () => {
+        $("#modelList").innerHTML = "";
+        defaultModels().forEach(addModel);
+        $("#pricingDate").value = defaultPricingDate;
+        setImportStatus("Modelos predeterminados restaurados. Todos los campos siguen siendo editables.", "success");
+        scheduleAutomation();
+      });
+      $$(".add-scenario").forEach(button => button.addEventListener("click", () => scheduleAutomation()));
+      $("#calculate").addEventListener("click", () => calculate(false));
+      $("#fetchExchangeRate").addEventListener("click", fetchExchangeRate);
+      $("#loadExample").addEventListener("click", () => { loadExample(); localStorage.setItem(storageKey, JSON.stringify(snapshotForm())); calculate(false); setImportStatus("Ejemplo cargado, calculado y guardado automáticamente.", "success"); });
+      $("#importButton").addEventListener("click", () => $("#fileInput").click());
+      $("#browseFiles").addEventListener("click", event => { event.stopPropagation(); $("#fileInput").click(); });
+      const uploadHelpDialog = $("#uploadHelpDialog");
+      $("#uploadHelp").addEventListener("click", event => { event.stopPropagation(); uploadHelpDialog.showModal(); });
+      $("#closeUploadHelp").addEventListener("click", () => uploadHelpDialog.close());
+      $("#understoodUploadHelp").addEventListener("click", () => uploadHelpDialog.close());
+      uploadHelpDialog.addEventListener("click", event => { if (event.target === uploadHelpDialog) uploadHelpDialog.close(); });
+      $("#fileInput").addEventListener("change", event => handleFiles(event.target.files));
+      $("#exportConfig").addEventListener("click", exportConfiguration);
+      $("#downloadTemplate").addEventListener("click", event => { event.stopPropagation(); downloadCsvTemplate(); });
+      const dropZone = $("#dropZone");
+      ["dragenter","dragover"].forEach(type => dropZone.addEventListener(type, event => { event.preventDefault(); dropZone.classList.add("dragover"); }));
+      ["dragleave","drop"].forEach(type => dropZone.addEventListener(type, event => { event.preventDefault(); dropZone.classList.remove("dragover"); }));
+      dropZone.addEventListener("drop", event => handleFiles(event.dataTransfer.files));
+      dropZone.addEventListener("click", event => { if (event.target === dropZone || !event.target.closest("button")) $("#fileInput").click(); });
+      dropZone.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); $("#fileInput").click(); } });
+      document.addEventListener("input", event => { if (event.target.closest("main") && !event.target.matches("#glossarySearch")) scheduleAutomation(); });
+      document.addEventListener("change", event => { if (event.target.closest("main") && !event.target.matches("#fileInput,#chartScenario,#chartVolume")) scheduleAutomation(); });
+      $("#resetAll").addEventListener("click", resetCalculator);
+      $("#glossarySearch").addEventListener("input", event => {
+        const query = normalizeHeader(event.target.value).replace(/_/g, " ");
+        $$(".glossary-item").forEach(item => { item.hidden = Boolean(query) && !normalizeHeader(item.textContent).replace(/_/g, " ").includes(query); });
+      });
+      syncTokenPanels();
+      syncMissingOutputOptions();
+      applyFieldHelp();
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        if (saved && saved.autoRestore !== false) {
+          applySnapshot(saved);
+          setImportStatus("Última sesión recuperada automáticamente.", "success");
+          if ($("#autoCalculate").checked) calculate(true);
+        }
+      } catch (error) {
+        setImportStatus("La sesión anterior no pudo recuperarse; puede importar un archivo o empezar de nuevo.", "warning");
+      }
+      loadCurrencyMenus();
+    })();
+  </script>
+</body>
+</html>
+
